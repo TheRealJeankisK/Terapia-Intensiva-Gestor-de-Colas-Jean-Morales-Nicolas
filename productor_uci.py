@@ -47,65 +47,65 @@ def publish_message(amqp_channel, exchange_name, routing_key, payload_dictionary
     )
     
     print("-" * 50)
-    print(f"[PUBLISHED] Exchange: '{exchange_name}' | Routing Key: '{routing_key}'")
-    print(f"Payload: {json.dumps(payload_dictionary)}")
+    print(f"[PUBLICADO] Exchange: '{exchange_name}' | Routing Key (Clave de Ruteo): '{routing_key}'")
+    print(f"Payload (Cuerpo): {json.dumps(payload_dictionary, ensure_ascii=False)}")
     print("-" * 50)
 
 def handle_manual_telemetry(amqp_channel):
     """
     Prompts the user for telemetry details and publishes it to the Topic exchange.
     """
-    print("\n--- Publish Vital Signs Telemetry (Topic Exchange) ---")
-    bed_input = input("Enter bed number (e.g. 05, 12) [Default: 08]: ").strip() or "08"
+    print("\n--- Publicar Telemetría de Signos Vitales (Topic Exchange) ---")
+    bed_input = input("Ingrese el número de cama (ej. 05, 12) [Por defecto: 08]: ").strip() or "08"
     
-    print("Select sensor type:")
-    print("1. Ritmo Cardíaco (heart rate)")
-    print("2. Oxígeno (oxygen saturation)")
-    print("3. Temperatura (temperature)")
-    sensor_choice = input("Choice (1-3): ").strip()
+    print("Seleccione el tipo de sensor:")
+    print("1. Ritmo Cardíaco")
+    print("2. Oxígeno (Saturación)")
+    print("3. Temperatura")
+    sensor_choice = input("Selección (1-3): ").strip()
     
     if sensor_choice == "1":
         sensor_type = "ritmo_cardiaco"
-        metric_value = float(input("Enter heart rate (bpm) [Default: 72]: ").strip() or "72")
+        metric_value = float(input("Ingrese ritmo cardíaco (bpm) [Por defecto: 72]: ").strip() or "72")
         unit = "bpm"
         # Evaluate severity
         if metric_value < 50 or metric_value > 120:
             severity_level = "critical"
-            description = "Abnormal heart rate detected!"
+            description = "¡Ritmo cardíaco anormal detectado!"
         elif metric_value < 60 or metric_value > 100:
             severity_level = "warning"
-            description = "Heart rate slightly out of range."
+            description = "Ritmo cardíaco ligeramente fuera de rango."
         else:
             severity_level = "info"
-            description = "Heart rate normal."
+            description = "Ritmo cardíaco normal."
             
     elif sensor_choice == "2":
         sensor_type = "oxigeno"
-        metric_value = float(input("Enter oxygen SpO2 (%) [Default: 97]: ").strip() or "97")
+        metric_value = float(input("Ingrese saturación de oxígeno SpO2 (%) [Por defecto: 97]: ").strip() or "97")
         unit = "%"
         if metric_value < 90:
             severity_level = "critical"
-            description = "Hypoxia warning! Critical oxygen saturation levels."
+            description = "¡Alerta de hipoxia! Niveles críticos de saturación de oxígeno."
         elif metric_value < 94:
             severity_level = "warning"
-            description = "Low oxygen levels."
+            description = "Niveles de oxígeno bajos."
         else:
             severity_level = "info"
-            description = "Oxygen levels normal."
+            description = "Niveles de oxígeno normales."
             
     else:
         sensor_type = "temperatura"
-        metric_value = float(input("Enter temperature (°C) [Default: 36.8]: ").strip() or "36.8")
+        metric_value = float(input("Ingrese temperatura (°C) [Por defecto: 36.8]: ").strip() or "36.8")
         unit = "C"
         if metric_value > 38.5 or metric_value < 35.0:
             severity_level = "critical"
-            description = "Critical temperature spike or hypothermia!"
+            description = "¡Alerta crítica de temperatura (fiebre alta o hipotermia)!"
         elif metric_value > 37.5 or metric_value < 36.0:
             severity_level = "warning"
-            description = "Fever warning."
+            description = "Advertencia de fiebre moderada."
         else:
             severity_level = "info"
-            description = "Temperature normal."
+            description = "Temperatura corporal normal."
 
     # Routing key pattern: cama.<bed_number>.<sensor_type>
     routing_key_topic = f"cama.{bed_input}.{sensor_type}"
@@ -124,12 +124,12 @@ def handle_manual_alert(amqp_channel):
     """
     Prompts the user for alert severity and description and publishes to Direct exchange.
     """
-    print("\n--- Publish Severity Alert (Direct Exchange) ---")
-    print("Select severity level:")
-    print("1. INFO (General information)")
-    print("2. WARNING (Requires attention)")
-    print("3. CRITICAL (Requires immediate response)")
-    severity_choice = input("Choice (1-3): ").strip()
+    print("\n--- Publicar Alerta de Severidad (Direct Exchange) ---")
+    print("Seleccione el nivel de severidad:")
+    print("1. INFO (Información general)")
+    print("2. WARNING (Requiere atención)")
+    print("3. CRITICAL (Requiere respuesta inmediata)")
+    severity_choice = input("Selección (1-3): ").strip()
     
     severity_level = "info"
     if severity_choice == "2":
@@ -137,10 +137,10 @@ def handle_manual_alert(amqp_channel):
     elif severity_choice == "3":
         severity_level = "critical"
         
-    description = input("Enter alert message: ").strip() or "Standard diagnostic alert"
+    description = input("Ingrese el mensaje de la alerta: ").strip() or "Alerta de diagnóstico estándar"
     
     payload_dictionary = generate_medical_payload(
-        bed_number="SYSTEM",
+        bed_number="SISTEMA",
         sensor_type="alerta_directa",
         metric_value=0.0,
         unit="N/A",
@@ -154,11 +154,11 @@ def handle_manual_biosecurity(amqp_channel):
     """
     Prompts the user for a biosecurity message and broadcasts to Fanout exchange.
     """
-    print("\n--- Publish Biosecurity Notice (Fanout Exchange) ---")
-    description = input("Enter biosecurity message: ").strip() or "Standard biosecurity check required."
+    print("\n--- Publicar Comunicado de Bioseguridad (Fanout Exchange) ---")
+    description = input("Ingrese el comunicado de bioseguridad: ").strip() or "Se requiere verificación rutinaria de bioseguridad."
     
     payload_dictionary = generate_medical_payload(
-        bed_number="ALL",
+        bed_number="TODOS",
         sensor_type="bioseguridad",
         metric_value=0.0,
         unit="N/A",
@@ -173,8 +173,8 @@ def run_automated_simulation(amqp_channel):
     """
     Runs an infinite loop simulating realistic patient readings and occasional critical events.
     """
-    print("\n[START] Starting automated UCI patient telemetries simulation...")
-    print("Press Ctrl+C to stop simulation and return to menu.\n")
+    print("\n[INICIO] Iniciando simulación automática de telemetrías de pacientes en UCI...")
+    print("Presione Ctrl+C para detener la simulación y regresar al menú.\n")
     
     active_sensors = [
         {"type": "ritmo_cardiaco", "unit": "bpm", "normal_range": (60, 95), "critical_range": (40, 140)},
@@ -199,11 +199,11 @@ def run_automated_simulation(amqp_channel):
                 if is_abnormal:
                     metric_value = round(random.uniform(*selected_sensor["critical_range"]), 1)
                     severity_level = "critical"
-                    description = f"Critical threshold breach for {selected_sensor['type']}!"
+                    description = f"¡Límite crítico superado para {selected_sensor['type']}!"
                 else:
                     metric_value = round(random.uniform(*selected_sensor["normal_range"]), 1)
                     severity_level = "info"
-                    description = f"Telemetry read normal for {selected_sensor['type']}."
+                    description = f"Lectura de telemetría normal para {selected_sensor['type']}."
                 
                 routing_key_topic = f"cama.{selected_bed}.{selected_sensor['type']}"
                 payload_dictionary = generate_medical_payload(
@@ -223,9 +223,9 @@ def run_automated_simulation(amqp_channel):
                 selected_bed = random.choice(bed_identifiers)
                 
                 descriptions = {
-                    "info": f"Routine shift change update for bed {selected_bed}.",
-                    "warning": f"Infusion pump warning: low volume remaining on bed {selected_bed}.",
-                    "critical": f"ECG electrode disconnected on bed {selected_bed}!"
+                    "info": f"Actualización de cambio de turno de enfermería para cama {selected_bed}.",
+                    "warning": f"Advertencia de bomba de infusión: bajo volumen restante en cama {selected_bed}.",
+                    "critical": f"¡Electrodo de ECG desconectado en la cama {selected_bed}!"
                 }
                 
                 payload_dictionary = generate_medical_payload(
@@ -242,13 +242,13 @@ def run_automated_simulation(amqp_channel):
             else:
                 # Fanout Biosecurity Notice
                 hospital_notices = [
-                    "Main power failure in North Wing - backup generator active.",
-                    "Hazmat decontamination protocols activated in Operating Room 2.",
-                    "Water supply maintenance scheduled for ICU sector at 22:00."
+                    "Fallo general de energía en el ala norte - generador de respaldo activo.",
+                    "Protocolos de descontaminación de bioseguridad activados en Quirófano 2.",
+                    "Mantenimiento programado de tuberías de agua en el ala UCI a las 22:00."
                 ]
                 
                 payload_dictionary = generate_medical_payload(
-                    bed_number="ALL",
+                    bed_number="TODOS",
                     sensor_type="bioseguridad",
                     metric_value=0.0,
                     unit="N/A",
@@ -262,14 +262,14 @@ def run_automated_simulation(amqp_channel):
             time.sleep(3)
             
     except KeyboardInterrupt:
-        print("\n[STOP] Automated simulation halted by user.")
+        print("\n[PARADA] Simulación automática detenida por el usuario.")
 
 def main():
     """
     Main entry point for the producer simulation cli.
     """
     print("=" * 60)
-    print("  UCI Patient Telemetry & Security Alert Producer Simulator  ")
+    print("  SIMULADOR PRODUCTOR: Telemetría UCI y Alertas de Seguridad  ")
     print("=" * 60)
     
     # Establish connection and set up the channel
@@ -280,19 +280,19 @@ def main():
         # Ensure infrastructure exists before starting operations (Idempotence)
         config.setup_infrastructure(amqp_channel)
     except Exception as connection_exception:
-        print(f"[FATAL] Connection initialization aborted. {connection_exception}")
+        print(f"[FATAL] Inicialización de conexión abortada. {connection_exception}")
         sys.exit(1)
         
     try:
         while True:
-            print("\nSelect an action:")
-            print("1. Publish manual Vital Signs Telemetry (Topic -> uci.monitoreo)")
-            print("2. Publish manual Severity Alert (Direct -> uci.alertas)")
-            print("3. Publish manual Biosecurity Broadcast (Fanout -> uci.bioseguridad)")
-            print("4. Run automated real-time ICU simulation loop")
-            print("5. Exit")
+            print("\nSeleccione una acción:")
+            print("1. Publicar Telemetría manual de signos vitales (Topic -> uci.monitoreo)")
+            print("2. Publicar Alerta manual de severidad (Direct -> uci.alertas)")
+            print("3. Publicar Comunicado manual de bioseguridad (Fanout -> uci.bioseguridad)")
+            print("4. Ejecutar bucle de simulación automática de UCI en tiempo real")
+            print("5. Salir")
             
-            main_menu_choice = input("Choice (1-5): ").strip()
+            main_menu_choice = input("Selección (1-5): ").strip()
             
             if main_menu_choice == "1":
                 handle_manual_telemetry(amqp_channel)
@@ -303,13 +303,13 @@ def main():
             elif main_menu_choice == "4":
                 run_automated_simulation(amqp_channel)
             elif main_menu_choice == "5":
-                print("Exiting producer simulator. Goodbye!")
+                print("Saliendo del simulador productor. ¡Adiós!")
                 break
             else:
-                print("[WARNING] Invalid choice. Please choose 1 to 5.")
+                print("[ADVERTENCIA] Selección no válida. Por favor elija del 1 al 5.")
                 
     except KeyboardInterrupt:
-        print("\nExiting producer. Closing connection.")
+        print("\nSaliendo del productor. Cerrando conexión.")
     finally:
         if rabbitmq_connection.is_open:
             rabbitmq_connection.close()

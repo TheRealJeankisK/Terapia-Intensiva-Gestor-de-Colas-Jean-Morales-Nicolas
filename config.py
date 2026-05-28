@@ -35,16 +35,16 @@ def get_rabbitmq_connection():
         connection_instance = pika.BlockingConnection(parameters=connection_parameters)
         return connection_instance
     except pika.exceptions.ProbableAuthenticationError:
-        print("[ERROR] RabbitMQ Authentication failed. Please check user credentials.", file=sys.stderr)
+        print("[ERROR] Falló la autenticación en RabbitMQ. Por favor verifique las credenciales de usuario.", file=sys.stderr)
         raise
     except pika.exceptions.ProbableAccessDeniedError:
-        print(f"[ERROR] Access denied. Ensure that the virtual host '{RABBITMQ_VIRTUAL_HOST}' exists in RabbitMQ.", file=sys.stderr)
-        print("[TIP] You can create it via the Management Web Interface (Admin -> Virtual Hosts) or by running:", file=sys.stderr)
-        print(f"      rabbitmqctl add_vhost {RABBITMQ_VIRTUAL_HOST}", file=sys.stderr)
-        print("      rabbitmqctl set_permissions -p /uci_app guest \".*\" \".*\" \".*\"", file=sys.stderr)
+        print(f"[ERROR] Acceso denegado. Asegúrese de que el virtual host '{RABBITMQ_VIRTUAL_HOST}' exista en RabbitMQ.", file=sys.stderr)
+        print("[CONSEJO] Puede crearlo desde la interfaz web de administración (Admin -> Virtual Hosts) o ejecutando:", file=sys.stderr)
+        print(f"          rabbitmqctl add_vhost {RABBITMQ_VIRTUAL_HOST}", file=sys.stderr)
+        print("          rabbitmqctl set_permissions -p /uci_app guest \".*\" \".*\" \".*\"", file=sys.stderr)
         raise
     except pika.exceptions.AMQPConnectionError:
-        print("[ERROR] Could not connect to RabbitMQ broker. Is RabbitMQ running on localhost?", file=sys.stderr)
+        print("[ERROR] No se pudo conectar al servidor RabbitMQ. ¿Está RabbitMQ ejecutándose en localhost?", file=sys.stderr)
         raise
 
 def setup_infrastructure(amqp_channel):
@@ -115,4 +115,4 @@ def setup_infrastructure(amqp_channel):
         routing_key=""
     )
 
-    print("[SUCCESS] RabbitMQ exchange, queue, and binding topology verified successfully.")
+    print("[ÉXITO] La topología de exchanges, colas y enlaces de RabbitMQ se verificó correctamente.")

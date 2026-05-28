@@ -25,22 +25,22 @@ def format_terminal_output(routing_key, payload):
     color_green = "\033[92m"
     
     # Choose color based on severity
-    if severity == "CRITICAL":
-        alert_prefix = f"{color_red}{color_bold}[CRITICAL CLINICAL ALERT]{color_reset}"
+    if severity == "CRITICAL" or severity == "CRÍTICA" or severity == "CRITICA":
+        alert_prefix = f"{color_red}{color_bold}[ALERTA CLÍNICA CRÍTICA]{color_reset}"
         severity_formatted = f"{color_red}{severity}{color_reset}"
-    elif severity == "WARNING":
-        alert_prefix = f"{color_yellow}{color_bold}[WARNING CLINICAL EVENT]{color_reset}"
+    elif severity == "WARNING" or severity == "ADVERTENCIA":
+        alert_prefix = f"{color_yellow}{color_bold}[EVENTO CLÍNICO DE ADVERTENCIA]{color_reset}"
         severity_formatted = f"{color_yellow}{severity}{color_reset}"
     else:
-        alert_prefix = f"{color_green}[INFO CLINICAL TELEMETRY]{color_reset}"
+        alert_prefix = f"{color_green}[TELEMETRÍA CLÍNICA INFORMATIVA]{color_reset}"
         severity_formatted = f"{color_cyan}{severity}{color_reset}"
         
     print(f"\n{alert_prefix}")
-    print(f"  [Routing Key]   : {routing_key}")
-    print(f"  [Patient Bed]   : Bed #{bed}")
-    print(f"  [Measurement]   : {sensor} = {value} {unit}")
-    print(f"  [Severity]      : {severity_formatted}")
-    print(f"  [Description]   : {description}")
+    print(f"  [Clave de Ruteo] : {routing_key}")
+    print(f"  [Cama Paciente]  : Cama #{bed}")
+    print(f"  [Medición]       : {sensor} = {value} {unit}")
+    print(f"  [Severidad]      : {severity_formatted}")
+    print(f"  [Descripción]    : {description}")
     print("-" * 50)
 
 def medical_message_callback(amqp_channel, delivery_method, message_properties, raw_message_body):
@@ -60,25 +60,25 @@ def medical_message_callback(amqp_channel, delivery_method, message_properties, 
         
         # Manually acknowledge the message processing completion
         amqp_channel.basic_ack(delivery_tag=delivery_method.delivery_tag)
-        print("[ACK] Message processed and acknowledged successfully.")
+        print("[ACK] Mensaje procesado y confirmado (Acknowledge) con éxito.")
         
     except json.JSONDecodeError as decode_exception:
-        print(f"[ERROR] Failed to decode JSON payload: {decode_exception}", file=sys.stderr)
+        print(f"[ERROR] Error al decodificar el cuerpo JSON: {decode_exception}", file=sys.stderr)
         # Reject invalid JSON formats without requeuing to prevent poison queue loops
         amqp_channel.basic_nack(delivery_tag=delivery_method.delivery_tag, requeue=False)
         
     except Exception as processing_exception:
-        print(f"[ERROR] Exception occurred while processing medical event: {processing_exception}", file=sys.stderr)
+        print(f"[ERROR] Ocurrió una excepción al procesar el evento médico: {processing_exception}", file=sys.stderr)
         # Requeue message to attempt reprocessing later
         amqp_channel.basic_nack(delivery_tag=delivery_method.delivery_tag, requeue=True)
-        print("[NACK] Message processing failed. Requeued for retry.")
+        print("[NACK] Falló el procesamiento del mensaje. Reencolado para reintento.")
 
 def main():
     """
     Initializes medical consumer connection and starts blocking queue consumption.
     """
     print("=" * 60)
-    print("    UCI Clinical Monitor Consumer (Medical Telemetry)    ")
+    print("  CONSUMIDOR: Monitor Clínico de UCI (Telemetría Médica)  ")
     print("=" * 60)
     
     try:
@@ -98,21 +98,21 @@ def main():
             auto_ack=False
         )
         
-        print(f"\n[*] Listening on queue: '{config.QUEUE_MEDICAL_MONITOR}'")
-        print("[*] Press Ctrl+C to terminate consumer safely.\n")
+        print(f"\n[*] Escuchando en la cola: '{config.QUEUE_MEDICAL_MONITOR}'")
+        print("[*] Presione Ctrl+C para finalizar el consumidor de forma segura.\n")
         
         amqp_channel.start_consuming()
         
     except KeyboardInterrupt:
-        print("\n[STOP] Medical Consumer terminated by user.")
+        print("\n[PARADA] Consumidor Médico detenido por el usuario.")
     except Exception as initialization_exception:
-        print(f"[FATAL] Consumer initialization error: {initialization_exception}", file=sys.stderr)
+        print(f"[FATAL] Error de inicialización del consumidor: {initialization_exception}", file=sys.stderr)
     finally:
         # Gracefully close connections
         try:
             if 'rabbitmq_connection' in locals() and rabbitmq_connection.is_open:
                 rabbitmq_connection.close()
-                print("[INFO] RabbitMQ connection closed cleanly.")
+                print("[INFO] Conexión a RabbitMQ cerrada limpiamente.")
         except Exception:
             pass
 
