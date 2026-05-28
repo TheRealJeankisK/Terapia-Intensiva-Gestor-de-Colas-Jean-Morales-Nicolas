@@ -13,19 +13,19 @@ import config
 
 class UCIDashboardApp:
     """
-    Main Application class for the UCI Graphical Monitoring Dashboard.
-    Manages GUI thread, background AMQP threads, and queue communications.
+    Highly-polished GUI Dashboard for the UCI Queue Management System.
+    Uses custom styles, thread-safe asynchronous updates, and responsive spacing.
     """
     def __init__(self, root_window):
         self.root = root_window
         self.root.title("UCI Monitoreo Crítico & Seguridad - RabbitMQ Dashboard")
-        self.root.geometry("1200x700")
-        self.root.configure(bg="#1e1e24")
+        self.root.geometry("1300x780")
+        self.root.configure(bg="#0f1016") # Deep slate black
         
-        # Thread-safe queue for communicating received messages from background threads to GUI thread
+        # Thread-safe queue for asynchronous messages from consumers
         self.message_update_queue = queue.Queue()
         
-        # Flags to control background threads
+        # Simulation flags
         self.is_simulation_active = False
         self.is_running = True
         
@@ -35,14 +35,28 @@ class UCIDashboardApp:
         self.medical_connection = None
         self.security_connection = None
         
-        # Try establishing initial producer connection and setting up infrastructure
+        # Color palette constants
+        self.COLOR_BG = "#0f1016"          # Outer background
+        self.COLOR_CARD = "#171923"        # Inside panels background
+        self.COLOR_ACCENT = "#4f46e5"      # Modern indigo
+        self.COLOR_ACCENT_HOVER = "#6366f1"
+        self.COLOR_TEXT_MAIN = "#ffffff"   # High contrast text
+        self.COLOR_TEXT_MUTED = "#a0aec0"  # Muted grey text
+        
+        self.COLOR_SUCCESS = "#10b981"     # Emerald Green
+        self.COLOR_WARNING = "#f59e0b"     # Amber
+        self.COLOR_DANGER = "#ef4444"      # Rose Red
+        self.COLOR_LOG_BG = "#0b0c10"      # Console black
+        
+        # Configure RabbitMQ connection
         self.initialize_rabbitmq()
         
-        # Build UI layout
+        # Initialize UI Components
         self.setup_styles()
+        self.create_header()
         self.create_widgets()
         
-        # Launch background consumer threads
+        # Launch background consumers
         self.start_consumer_threads()
         
         # Start periodic GUI queue poller
@@ -53,37 +67,39 @@ class UCIDashboardApp:
 
     def setup_styles(self):
         """
-        Configures theme colors and font styles matching a dark premium aesthetic.
+        Customizes theme colors, entries, dropdowns and button styles.
         """
         style = ttk.Style()
         style.theme_use("clam")
         
-        # Dark style configurations
-        style.configure(".", background="#1e1e24", foreground="#ffffff")
-        style.configure("TLabel", background="#1e1e24", foreground="#ffffff", font=("Segoe UI", 10))
-        style.configure("Header.TLabel", background="#1e1e24", foreground="#3f51b5", font=("Segoe UI", 14, "bold"))
-        style.configure("SubHeader.TLabel", background="#2a2a35", foreground="#90caf9", font=("Segoe UI", 11, "bold"))
+        # Set default styles
+        style.configure(".", background=self.COLOR_BG, foreground=self.COLOR_TEXT_MAIN)
+        style.configure("TLabel", background=self.COLOR_BG, foreground=self.COLOR_TEXT_MAIN, font=("Segoe UI", 10))
         
-        style.configure("TFrame", background="#1e1e24")
-        style.configure("Card.TFrame", background="#2a2a35", relief="flat")
+        # Card style panels
+        style.configure("Card.TFrame", background=self.COLOR_CARD, relief="flat")
+        style.configure("CardLabel.TLabel", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MAIN, font=("Segoe UI", 10))
+        style.configure("CardHeader.TLabel", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MAIN, font=("Segoe UI", 12, "bold"))
+        style.configure("CardSubHeader.TLabel", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MUTED, font=("Segoe UI", 9, "italic"))
         
-        style.configure("TButton", background="#3f51b5", foreground="#ffffff", borderwidth=0, font=("Segoe UI", 10, "bold"))
-        style.map("TButton", background=[("active", "#5c6bc0")])
+        # Custom input entries and comboboxes
+        style.configure("TEntry", fieldbackground="#1f2232", foreground=self.COLOR_TEXT_MAIN, bordercolor="#2d3748")
+        style.map("TEntry", bordercolor=[("focus", self.COLOR_ACCENT)])
         
-        style.configure("Alert.TButton", background="#f44336", foreground="#ffffff", font=("Segoe UI", 10, "bold"))
-        style.map("Alert.TButton", background=[("active", "#e53935")])
+        style.configure("TCombobox", fieldbackground="#1f2232", background="#1f2232", foreground=self.COLOR_TEXT_MAIN, arrowcolor=self.COLOR_TEXT_MAIN)
+        style.map("TCombobox", fieldbackground=[("readonly", "#1f2232")], selectbackground=[("readonly", "#1f2232")])
         
-        style.configure("TEntry", fieldbackground="#1e1e24", foreground="#ffffff", bordercolor="#424242")
-        style.configure("TCombobox", fieldbackground="#1e1e24", background="#1e1e24", foreground="#ffffff")
+        # Custom LabelFrames
+        style.configure("TLabelframe", background=self.COLOR_CARD, bordercolor="#2d3748", relief="solid", borderwidth=1)
+        style.configure("TLabelframe.Label", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MUTED, font=("Segoe UI", 9, "bold"))
 
     def initialize_rabbitmq(self):
         """
-        Connects and declares the AMQP topology. Displays graphical error popups if it fails.
+        Declares RabbitMQ topology. Fails gracefully displaying a messagebox warning.
         """
         try:
             self.producer_connection = config.get_rabbitmq_connection()
             self.producer_channel = self.producer_connection.channel()
-            # Ensure topology exists idempotently
             config.setup_infrastructure(self.producer_channel)
         except Exception as connection_error:
             messagebox.showerror(
@@ -92,182 +108,261 @@ class UCIDashboardApp:
                 f"Detalle: {connection_error}\n\n"
                 f"Asegúrese de que RabbitMQ esté encendido y que el Virtual Host '/uci_app' haya sido creado."
             )
-            # Do not exit instantly, allow the GUI to open so they can inspect/retry
+
+    def create_header(self):
+        """
+        Creates a clean status bar banner at the top of the GUI.
+        """
+        header_frame = tk.Frame(self.root, bg="#13141f", height=60, bd=0)
+        header_frame.pack(fill="x", side="top")
+        header_frame.pack_propagate(False)
+        
+        # Hospital Title Label
+        title_label = tk.Label(
+            header_frame,
+            text="🏥  MONITOREO DE PACIENTES & SEGURIDAD UCI",
+            fg=self.COLOR_TEXT_MAIN,
+            bg="#13141f",
+            font=("Segoe UI", 14, "bold")
+        )
+        title_label.pack(side="left", padx=20, pady=15)
+        
+        # RabbitMQ Connection Pulse Indicator
+        status_sub_frame = tk.Frame(header_frame, bg="#13141f")
+        status_sub_frame.pack(side="right", padx=20, pady=15)
+        
+        status_color = self.COLOR_SUCCESS if (self.producer_channel and self.producer_channel.is_open) else self.COLOR_DANGER
+        status_text = "● RabbitMQ: Conectado (vhost: /uci_app)" if (self.producer_channel and self.producer_channel.is_open) else "● RabbitMQ: Desconectado"
+        
+        status_dot = tk.Label(
+            status_sub_frame,
+            text=status_text,
+            fg=status_color,
+            bg="#13141f",
+            font=("Segoe UI", 10, "bold")
+        )
+        status_dot.pack()
 
     def create_widgets(self):
         """
-        Constructs the columns for the Producer, Medical Consumer, and Security Consumer.
+        Main workspace layout. Builds the 3 structured column panels.
         """
-        # Outer main container frame
-        main_layout_frame = ttk.Frame(self.root, padding=15)
-        main_layout_frame.pack(fill="both", expand=True)
+        workspace_frame = ttk.Frame(self.root, padding=15)
+        workspace_frame.pack(fill="both", expand=True)
         
-        # Split layout into three equal columns
-        main_layout_frame.columnconfigure(0, weight=1, uniform="equal_cols")
-        main_layout_frame.columnconfigure(1, weight=1, uniform="equal_cols")
-        main_layout_frame.columnconfigure(2, weight=1, uniform="equal_cols")
-        main_layout_frame.rowconfigure(0, weight=1)
+        workspace_frame.columnconfigure(0, weight=4, uniform="cols") # Left simulator
+        workspace_frame.columnconfigure(1, weight=5, uniform="cols") # Middle Clinical Log
+        workspace_frame.columnconfigure(2, weight=5, uniform="cols") # Right Security Log
+        workspace_frame.rowconfigure(0, weight=1)
         
         # -------------------------------------------------------------
-        # COLUMN 1: PRODUCER CONTROL PANEL
+        # COLUMN 1: SIMULATOR CONTROL CARD
         # -------------------------------------------------------------
-        producer_card = ttk.Frame(main_layout_frame, style="Card.TFrame", padding=15)
-        producer_card.grid(row=0, column=0, padx=10, sticky="nsew")
+        producer_panel = ttk.Frame(workspace_frame, style="Card.TFrame", padding=15)
+        producer_panel.grid(row=0, column=0, padx=10, sticky="nsew")
         
-        title_label_producer = ttk.Label(producer_card, text="🏥 PANEL DE SIMULACIÓN UCI", style="Header.TLabel", background="#2a2a35")
-        title_label_producer.pack(anchor="w", pady=(0, 15))
+        title_producer = ttk.Label(producer_panel, text="EMISOR DE EVENTOS UCI", style="CardHeader.TLabel")
+        title_producer.pack(anchor="w", pady=(0, 2))
         
-        # Sub-Section A: Vital Signs Telemetry (Topic)
-        section_vitals_frame = ttk.LabelFrame(producer_card, text=" 🫀 Telemetría de Pacientes (Topic) ", padding=10, labelanchor="nw")
-        section_vitals_frame.pack(fill="x", pady=5)
+        subtitle_producer = ttk.Label(producer_panel, text="Simula la emisión de datos clínicos y alertas críticas.", style="CardSubHeader.TLabel")
+        subtitle_producer.pack(anchor="w", pady=(0, 15))
         
-        grid_vitals = ttk.Frame(section_vitals_frame)
+        # Group 1: Vitals (Topic Exchange)
+        vitals_group = ttk.LabelFrame(producer_panel, text=" TELEMETRÍA DE SIGNOS VITALES [TOPIC] ")
+        vitals_group.pack(fill="x", pady=5)
+        
+        grid_vitals = ttk.Frame(vitals_group, padding=10)
         grid_vitals.pack(fill="x")
+        grid_vitals.columnconfigure(0, weight=1)
+        grid_vitals.columnconfigure(1, weight=1)
         
-        ttk.Label(grid_vitals, text="Número Cama:").grid(row=0, column=0, sticky="w", pady=2)
-        self.cama_entry = ttk.Entry(grid_vitals, width=10)
+        ttk.Label(grid_vitals, text="Número Cama:", style="CardLabel.TLabel").grid(row=0, column=0, sticky="w", pady=4)
+        self.cama_entry = ttk.Entry(grid_vitals, width=12, font=("Segoe UI", 9))
         self.cama_entry.insert(0, "05")
-        self.cama_entry.grid(row=0, column=1, sticky="w", padx=5, pady=2)
+        self.cama_entry.grid(row=0, column=1, sticky="w", pady=4)
         
-        ttk.Label(grid_vitals, text="Tipo Signo:").grid(row=1, column=0, sticky="w", pady=2)
-        self.sensor_combobox = ttk.Combobox(grid_vitals, values=["ritmo_cardiaco", "oxigeno", "temperatura"], state="readonly", width=15)
+        ttk.Label(grid_vitals, text="Tipo Sensor:", style="CardLabel.TLabel").grid(row=1, column=0, sticky="w", pady=4)
+        self.sensor_combobox = ttk.Combobox(grid_vitals, values=["ritmo_cardiaco", "oxigeno", "temperatura"], state="readonly", width=14, font=("Segoe UI", 9))
         self.sensor_combobox.current(0)
-        self.sensor_combobox.grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        self.sensor_combobox.grid(row=1, column=1, sticky="w", pady=4)
         
-        ttk.Label(grid_vitals, text="Valor Medido:").grid(row=2, column=0, sticky="w", pady=2)
-        self.valor_entry = ttk.Entry(grid_vitals, width=10)
+        ttk.Label(grid_vitals, text="Valor Medido:", style="CardLabel.TLabel").grid(row=2, column=0, sticky="w", pady=4)
+        self.valor_entry = ttk.Entry(grid_vitals, width=12, font=("Segoe UI", 9))
         self.valor_entry.insert(0, "75.0")
-        self.valor_entry.grid(row=2, column=1, sticky="w", padx=5, pady=2)
+        self.valor_entry.grid(row=2, column=1, sticky="w", pady=4)
         
-        send_vitals_button = ttk.Button(section_vitals_frame, text="Enviar Signo Vital (Topic)", command=self.send_manual_telemetry)
-        send_vitals_button.pack(fill="x", pady=(10, 0))
+        self.btn_send_vitals = self.create_flat_button(
+            vitals_group, "Publicar Signo Vital", self.send_manual_telemetry, self.COLOR_SUCCESS
+        )
+        self.btn_send_vitals.pack(fill="x", padx=10, pady=(5, 10))
         
-        # Sub-Section B: Direct Alerts (Direct)
-        section_alerts_frame = ttk.LabelFrame(producer_card, text=" ⚠️ Alertas de Gravedad (Direct) ", padding=10)
-        section_alerts_frame.pack(fill="x", pady=10)
+        # Group 2: Alerts (Direct Exchange)
+        alerts_group = ttk.LabelFrame(producer_panel, text=" ALERTAS DIRECTAS POR GRAVEDAD [DIRECT] ")
+        alerts_group.pack(fill="x", pady=10)
         
-        grid_alerts = ttk.Frame(section_alerts_frame)
+        grid_alerts = ttk.Frame(alerts_group, padding=10)
         grid_alerts.pack(fill="x")
+        grid_alerts.columnconfigure(0, weight=1)
+        grid_alerts.columnconfigure(1, weight=1)
         
-        ttk.Label(grid_alerts, text="Severidad:").grid(row=0, column=0, sticky="w", pady=2)
-        self.severity_combobox = ttk.Combobox(grid_alerts, values=["info", "warning", "critical"], state="readonly", width=12)
+        ttk.Label(grid_alerts, text="Severidad:", style="CardLabel.TLabel").grid(row=0, column=0, sticky="w", pady=4)
+        self.severity_combobox = ttk.Combobox(grid_alerts, values=["info", "warning", "critical"], state="readonly", width=14, font=("Segoe UI", 9))
         self.severity_combobox.current(0)
-        self.severity_combobox.grid(row=0, column=1, sticky="w", padx=5, pady=2)
+        self.severity_combobox.grid(row=0, column=1, sticky="w", pady=4)
         
-        ttk.Label(grid_alerts, text="Mensaje:").grid(row=1, column=0, sticky="w", pady=2)
-        self.alerta_mensaje_entry = ttk.Entry(grid_alerts, width=22)
+        ttk.Label(grid_alerts, text="Mensaje:", style="CardLabel.TLabel").grid(row=1, column=0, sticky="w", pady=4)
+        self.alerta_mensaje_entry = ttk.Entry(grid_alerts, width=18, font=("Segoe UI", 9))
         self.alerta_mensaje_entry.insert(0, "Electrodo de ECG suelto")
-        self.alerta_mensaje_entry.grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        self.alerta_mensaje_entry.grid(row=1, column=1, sticky="w", pady=4)
         
-        send_alert_button = ttk.Button(section_alerts_frame, text="Enviar Alerta Severa (Direct)", command=self.send_manual_alert)
-        send_alert_button.pack(fill="x", pady=(10, 0))
+        self.btn_send_alerts = self.create_flat_button(
+            alerts_group, "Publicar Alerta Directa", self.send_manual_alert, self.COLOR_WARNING
+        )
+        self.btn_send_alerts.pack(fill="x", padx=10, pady=(5, 10))
         
-        # Sub-Section C: Biosecurity (Fanout)
-        section_biosecurity_frame = ttk.LabelFrame(producer_card, text=" 📢 Comunicado Bioseguridad (Fanout) ", padding=10)
-        section_biosecurity_frame.pack(fill="x", pady=5)
+        # Group 3: Biosecurity (Fanout Exchange)
+        biosecurity_group = ttk.LabelFrame(producer_panel, text=" AVISOS GENERALES Y BIOSEGURIDAD [FANOUT] ")
+        biosecurity_group.pack(fill="x", pady=5)
         
-        self.bioseguridad_mensaje_entry = ttk.Entry(section_biosecurity_frame)
+        frame_bio = ttk.Frame(biosecurity_group, padding=10)
+        frame_bio.pack(fill="x")
+        
+        ttk.Label(frame_bio, text="Comunicado de Hospital:", style="CardLabel.TLabel").pack(anchor="w", pady=(0, 4))
+        self.bioseguridad_mensaje_entry = ttk.Entry(frame_bio, font=("Segoe UI", 9))
         self.bioseguridad_mensaje_entry.insert(0, "Fallo de energía en Planta Norte")
         self.bioseguridad_mensaje_entry.pack(fill="x", pady=2)
         
-        send_biosecurity_button = ttk.Button(section_biosecurity_frame, text="Difundir Comunicado (Fanout)", command=self.send_manual_biosecurity)
-        send_biosecurity_button.pack(fill="x", pady=(8, 0))
+        self.btn_send_biosecurity = self.create_flat_button(
+            biosecurity_group, "Difundir Aviso general", self.send_manual_biosecurity, self.COLOR_DANGER
+        )
+        self.btn_send_biosecurity.pack(fill="x", padx=10, pady=(5, 10))
         
-        # Sub-Section D: Auto Simulation Checkbox
+        # Group 4: Automated Simulation Checkbutton
         self.auto_simulation_var = tk.BooleanVar(value=False)
         self.auto_checkbox = tk.Checkbutton(
-            producer_card,
-            text="Simulación Automática Real-Time",
+            producer_panel,
+            text=" Activar Simulación Automática en Tiempo Real",
             variable=self.auto_simulation_var,
             command=self.toggle_automated_simulation,
-            bg="#2a2a35",
-            fg="#ffffff",
-            selectcolor="#1e1e24",
-            activebackground="#2a2a35",
-            activeforeground="#ffffff",
-            font=("Segoe UI", 10, "bold")
+            bg=self.COLOR_CARD,
+            fg="#cbd5e0",
+            selectcolor="#1a1c23",
+            activebackground=self.COLOR_CARD,
+            activeforeground=self.COLOR_TEXT_MAIN,
+            font=("Segoe UI", 9, "bold")
         )
-        self.auto_checkbox.pack(pady=(15, 0), anchor="center")
-        
+        self.auto_checkbox.pack(pady=(20, 0), anchor="center")
+
         # -------------------------------------------------------------
-        # COLUMN 2: CLINICAL MONITOR (CONSUMER 1)
+        # COLUMN 2: CLINICAL TELEMETRY MONITOR (CONSUMER 1)
         # -------------------------------------------------------------
-        medical_card = ttk.Frame(main_layout_frame, style="Card.TFrame", padding=15)
-        medical_card.grid(row=0, column=1, padx=10, sticky="nsew")
+        medical_panel = ttk.Frame(workspace_frame, style="Card.TFrame", padding=15)
+        medical_panel.grid(row=0, column=1, padx=10, sticky="nsew")
         
-        title_label_medical = ttk.Label(medical_card, text="🩺 MONITOR CLÍNICO DE UCI", style="Header.TLabel", background="#2a2a35")
-        title_label_medical.pack(anchor="w", pady=(0, 10))
+        title_med = ttk.Label(medical_panel, text="MONITOR CLÍNICO DE UCI", style="CardHeader.TLabel")
+        title_med.pack(anchor="w", pady=(0, 2))
         
-        info_label_medical = ttk.Label(
-            medical_card,
-            text="Escuchando telemetría de camas y alertas de nivel warning/critical.",
-            wraplength=320,
-            background="#2a2a35",
-            foreground="#b0bec5",
-            font=("Segoe UI", 9, "italic")
-        )
-        info_label_medical.pack(fill="x", pady=(0, 10))
+        sub_med = ttk.Label(medical_panel, text="Registro en tiempo real de signos de pacientes.", style="CardSubHeader.TLabel")
+        sub_med.pack(anchor="w", pady=(0, 12))
         
-        # Scrolled Text log area
+        # Scrolled Text configuration with customized layout
         self.medical_log_box = scrolledtext.ScrolledText(
-            medical_card,
-            bg="#121214",
-            fg="#eceff1",
+            medical_panel,
+            bg=self.COLOR_LOG_BG,
+            fg="#e2e8f0",
             insertbackground="white",
             font=("Consolas", 9),
-            relief="flat"
+            relief="flat",
+            bd=0,
+            padx=10,
+            pady=10,
+            spacing1=3,
+            spacing2=2
         )
         self.medical_log_box.pack(fill="both", expand=True)
         
-        # Custom Tags for log formatting
-        self.medical_log_box.tag_config("CRITICAL", foreground="#f44336", font=("Consolas", 9, "bold"))
-        self.medical_log_box.tag_config("WARNING", foreground="#ffb300", font=("Consolas", 9, "bold"))
-        self.medical_log_box.tag_config("INFO", foreground="#4caf50")
-        self.medical_log_box.tag_config("ACK", foreground="#00acc1", font=("Consolas", 8, "italic"))
-        
+        # Log entry highlighting tags
+        self.medical_log_box.tag_config("CRITICAL", foreground="#f87171", font=("Consolas", 9, "bold"))
+        self.medical_log_box.tag_config("WARNING", foreground="#fbbf24", font=("Consolas", 9, "bold"))
+        self.medical_log_box.tag_config("INFO", foreground="#34d399")
+        self.medical_log_box.tag_config("ACK", foreground="#38bdf8", font=("Consolas", 8, "italic"))
+
         # -------------------------------------------------------------
-        # COLUMN 3: SECURITY & OPERATIONS MONITOR (CONSUMER 2)
+        # COLUMN 3: SECURITY & INFRASTRUCTURE MONITOR (CONSUMER 2)
         # -------------------------------------------------------------
-        security_card = ttk.Frame(main_layout_frame, style="Card.TFrame", padding=15)
-        security_card.grid(row=0, column=2, padx=10, sticky="nsew")
+        security_panel = ttk.Frame(workspace_frame, style="Card.TFrame", padding=15)
+        security_panel.grid(row=0, column=2, padx=10, sticky="nsew")
         
-        title_label_security = ttk.Label(security_card, text="🚨 PANEL DE SEGURIDAD FISICA", style="Header.TLabel", background="#2a2a35")
-        title_label_security.pack(anchor="w", pady=(0, 10))
+        title_sec = ttk.Label(security_panel, text="DEPARTAMENTO DE SEGURIDAD", style="CardHeader.TLabel")
+        title_sec.pack(anchor="w", pady=(0, 2))
         
-        info_label_security = ttk.Label(
-            security_card,
-            text="Escuchando alertas de infraestructura críticas y notificaciones generales.",
-            wraplength=320,
-            background="#2a2a35",
-            foreground="#b0bec5",
-            font=("Segoe UI", 9, "italic")
-        )
-        info_label_security.pack(fill="x", pady=(0, 10))
+        sub_sec = ttk.Label(security_panel, text="Alarmas de infraestructura y avisos generales.", style="CardSubHeader.TLabel")
+        sub_sec.pack(anchor="w", pady=(0, 12))
         
         self.security_log_box = scrolledtext.ScrolledText(
-            security_card,
-            bg="#121214",
-            fg="#eceff1",
+            security_panel,
+            bg=self.COLOR_LOG_BG,
+            fg="#e2e8f0",
             insertbackground="white",
             font=("Consolas", 9),
-            relief="flat"
+            relief="flat",
+            bd=0,
+            padx=10,
+            pady=10,
+            spacing1=3,
+            spacing2=2
         )
         self.security_log_box.pack(fill="both", expand=True)
         
-        # Custom Tags for log formatting
-        self.security_log_box.tag_config("EMERGENCIA", foreground="#ffffff", background="#f44336", font=("Consolas", 10, "bold"))
-        self.security_log_box.tag_config("BIOSEGURIDAD", foreground="#ffffff", background="#ff8f00", font=("Consolas", 9, "bold"))
-        self.security_log_box.tag_config("ACK", foreground="#00acc1", font=("Consolas", 8, "italic"))
+        self.security_log_box.tag_config("EMERGENCIA", foreground="#ffffff", background="#ef4444", font=("Consolas", 9, "bold"))
+        self.security_log_box.tag_config("BIOSEGURIDAD", foreground="#ffffff", background="#f59e0b", font=("Consolas", 9, "bold"))
+        self.security_log_box.tag_config("ACK", foreground="#38bdf8", font=("Consolas", 8, "italic"))
+
+    def create_flat_button(self, parent, text, command, bg_color):
+        """
+        Creates a custom stylized flat button with smooth hover animation.
+        """
+        btn = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            bg=bg_color,
+            fg="#ffffff",
+            activebackground=bg_color,
+            activeforeground="#ffffff",
+            relief="flat",
+            font=("Segoe UI", 9, "bold"),
+            bd=0,
+            cursor="hand2",
+            pady=6
+        )
+        
+        # Hover effect functions
+        def on_enter(event):
+            btn.config(bg=self.lighten_color(bg_color))
+        def on_leave(event):
+            btn.config(bg=bg_color)
+            
+        btn.bind("<Enter>", on_enter)
+        btn.bind("<Leave>", on_leave)
+        return btn
+
+    def lighten_color(self, hex_color):
+        """
+        Calculates a slightly lighter version of a color for the hover animation.
+        """
+        hex_color = hex_color.lstrip('#')
+        rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        # Increase values slightly
+        lighter_rgb = tuple(min(255, int(channel * 1.15)) for channel in rgb)
+        return '#{:02x}{:02x}{:02x}'.format(*lighter_rgb)
 
     # -----------------------------------------------------------------
     # AMQP PRODUCER LOGIC
     # -----------------------------------------------------------------
     def send_manual_telemetry(self):
-        """
-        Publishes vital signs telemetry to the Topic exchange.
-        """
         if not self.producer_channel or not self.producer_channel.is_open:
-            messagebox.showerror("Error", "No hay conexión activa con RabbitMQ.")
+            messagebox.showerror("Error de Conexión", "No hay conexión activa con el servidor RabbitMQ.")
             return
             
         cama = self.cama_entry.get().strip() or "08"
@@ -275,10 +370,9 @@ class UCIDashboardApp:
         try:
             valor = float(self.valor_entry.get().strip())
         except ValueError:
-            messagebox.showerror("Error de entrada", "El valor medido debe ser un número válido.")
+            messagebox.showerror("Entrada incorrecta", "El valor medido debe ser numérico.")
             return
             
-        # Standard clinical evaluations
         unit = "bpm" if sensor == "ritmo_cardiaco" else "%" if sensor == "oxigeno" else "C"
         severity = "info"
         description = "Signos estables."
@@ -296,14 +390,14 @@ class UCIDashboardApp:
                 description = "¡Alerta de hipoxia! Saturación de oxígeno crítica."
             elif valor < 94:
                 severity = "warning"
-                description = "Bajo nivel de saturación."
+                description = "Niveles bajos de oxígeno."
         else: # temperatura
             if valor > 38.5 or valor < 35.0:
                 severity = "critical"
-                description = "¡Alerta crítica de temperatura (fiebre o hipotermia)!"
+                description = "¡Alerta crítica de temperatura (fiebre alta o hipotermia)!"
             elif valor > 37.5 or valor < 36.0:
                 severity = "warning"
-                description = "Alerta de fiebre moderada."
+                description = "Advertencia de fiebre moderada."
 
         routing_key = f"cama.{cama}.{sensor}"
         payload = {
@@ -319,19 +413,16 @@ class UCIDashboardApp:
         
         try:
             self.publish_to_rabbitmq(config.EXCHANGE_MONITORING, routing_key, payload)
-        except Exception as publish_error:
-            messagebox.showerror("Error al enviar", f"Falló la publicación del mensaje: {publish_error}")
+        except Exception as error:
+            messagebox.showerror("Error de envío", f"No se pudo publicar: {error}")
 
     def send_manual_alert(self):
-        """
-        Publishes custom system notifications to the Direct exchange.
-        """
         if not self.producer_channel or not self.producer_channel.is_open:
-            messagebox.showerror("Error", "No hay conexión activa con RabbitMQ.")
+            messagebox.showerror("Error de Conexión", "No hay conexión activa con el servidor RabbitMQ.")
             return
             
         severity = self.severity_combobox.get()
-        mensaje = self.alerta_mensaje_entry.get().strip() or "Mensaje de diagnóstico de red"
+        mensaje = self.alerta_mensaje_entry.get().strip() or "Alerta de diagnóstico estándar"
         
         payload = {
             "message_id": str(uuid.uuid4()),
@@ -346,18 +437,15 @@ class UCIDashboardApp:
         
         try:
             self.publish_to_rabbitmq(config.EXCHANGE_ALERTS, severity, payload)
-        except Exception as publish_error:
-            messagebox.showerror("Error al enviar", f"Falló la publicación del mensaje: {publish_error}")
+        except Exception as error:
+            messagebox.showerror("Error de envío", f"No se pudo publicar: {error}")
 
     def send_manual_biosecurity(self):
-        """
-        Broadcasts biosecurity messages to the Fanout exchange.
-        """
         if not self.producer_channel or not self.producer_channel.is_open:
-            messagebox.showerror("Error", "No hay conexión activa con RabbitMQ.")
+            messagebox.showerror("Error de Conexión", "No hay conexión activa con el servidor RabbitMQ.")
             return
             
-        mensaje = self.bioseguridad_mensaje_entry.get().strip() or "Control de acceso rutinario activo"
+        mensaje = self.bioseguridad_mensaje_entry.get().strip() or "Se requiere verificación de bioseguridad"
         
         payload = {
             "message_id": str(uuid.uuid4()),
@@ -371,15 +459,11 @@ class UCIDashboardApp:
         }
         
         try:
-            # Fanout exchange routing key is empty string
             self.publish_to_rabbitmq(config.EXCHANGE_BIOSECURITY, "", payload)
-        except Exception as publish_error:
-            messagebox.showerror("Error al enviar", f"Falló la publicación del mensaje: {publish_error}")
+        except Exception as error:
+            messagebox.showerror("Error de envío", f"No se pudo publicar: {error}")
 
     def publish_to_rabbitmq(self, exchange, routing_key, payload):
-        """
-        Serializes and basic_publishes to RabbitMQ.
-        """
         serialized = json.dumps(payload, indent=2)
         message_properties = pika.BasicProperties(
             content_type="application/json",
@@ -393,20 +477,14 @@ class UCIDashboardApp:
         )
 
     def toggle_automated_simulation(self):
-        """
-        Toggles state of automated generator background thread loop.
-        """
         if self.auto_simulation_var.get():
             self.is_simulation_active = True
-            simulation_thread = threading.Thread(target=self.run_background_simulation_loop, daemon=True)
-            simulation_thread.start()
+            sim_thread = threading.Thread(target=self.run_background_simulation, daemon=True)
+            sim_thread.start()
         else:
             self.is_simulation_active = False
 
-    def run_background_simulation_loop(self):
-        """
-        Background loop simulating readings and emergencies periodically.
-        """
+    def run_background_simulation(self):
         active_sensors = [
             {"type": "ritmo_cardiaco", "unit": "bpm", "normal_range": (60, 95), "critical_range": (40, 140)},
             {"type": "oxigeno", "unit": "%", "normal_range": (95, 100), "critical_range": (80, 89)},
@@ -446,7 +524,7 @@ class UCIDashboardApp:
                     cama = random.choice(bed_identifiers)
                     descriptions = {
                         "info": f"Cambio de turno rutinario para cama {cama}.",
-                        "warning": f"Advertencia de bomba de infusión: bajo volumen restante en cama {cama}.",
+                        "warning": f"Advertencia de bomba de infusión: bajo volumen en cama {cama}.",
                         "critical": f"¡Electrodo de ECG desconectado en cama {cama}!"
                     }
                     payload = generate_medical_payload(cama, "alerta_directa", 0.0, "N/A", severity, descriptions[severity])
@@ -463,28 +541,21 @@ class UCIDashboardApp:
                     self.publish_to_rabbitmq(config.EXCHANGE_BIOSECURITY, "", payload)
                     
             except Exception:
-                # Silently catch background publish failures to avoid thread crashes
                 pass
                 
             time.sleep(3)
 
     # -----------------------------------------------------------------
-    # BACKGROUND CONSUMER THREADS
+    # BACKGROUND CONSUMERS LISTENING
     # -----------------------------------------------------------------
     def start_consumer_threads(self):
-        """
-        Spawns separate daemon threads for medical and security listeners.
-        """
-        medical_listener = threading.Thread(target=self.run_medical_consumer_listener, daemon=True)
-        medical_listener.start()
+        medical_thread = threading.Thread(target=self.run_medical_consumer_listener, daemon=True)
+        medical_thread.start()
         
-        security_listener = threading.Thread(target=self.run_security_consumer_listener, daemon=True)
-        security_listener.start()
+        security_thread = threading.Thread(target=self.run_security_consumer_listener, daemon=True)
+        security_thread.start()
 
     def run_medical_consumer_listener(self):
-        """
-        Listens to config.QUEUE_MEDICAL_MONITOR in a separate connection/thread.
-        """
         try:
             self.medical_connection = config.get_rabbitmq_connection()
             channel = self.medical_connection.channel()
@@ -494,12 +565,9 @@ class UCIDashboardApp:
             def callback(ch, method, properties, body):
                 try:
                     payload = json.loads(body.decode('utf-8'))
-                    # Place in thread-safe queue to schedule GUI log printing
                     self.message_update_queue.put(("MEDICAL", method.routing_key, payload))
                     
-                    # Simulate processing delay
                     time.sleep(0.5)
-                    # Acknowledge message manually
                     ch.basic_ack(delivery_tag=method.delivery_tag)
                     self.message_update_queue.put(("MEDICAL_ACK", "", {}))
                 except Exception:
@@ -508,13 +576,9 @@ class UCIDashboardApp:
             channel.basic_consume(queue=config.QUEUE_MEDICAL_MONITOR, on_message_callback=callback, auto_ack=False)
             channel.start_consuming()
         except Exception:
-            # Let thread exit gracefully if connection fails or closes
             pass
 
     def run_security_consumer_listener(self):
-        """
-        Listens to config.QUEUE_GENERAL_NOTICES & config.QUEUE_CRITICAL_ALERTS in a separate thread.
-        """
         try:
             self.security_connection = config.get_rabbitmq_connection()
             channel = self.security_connection.channel()
@@ -539,12 +603,9 @@ class UCIDashboardApp:
             pass
 
     # -----------------------------------------------------------------
-    # GUI UPDATE POLLEING LOGIC (RUNS ON MAIN GUI THREAD)
+    # GUI ASYNCHRONOUS POLLER
     # -----------------------------------------------------------------
     def poll_received_messages(self):
-        """
-        Checks the thread-safe queue for incoming logs and paints them to the GUI frames.
-        """
         if not self.is_running:
             return
             
@@ -555,25 +616,21 @@ class UCIDashboardApp:
                 if msg_type == "MEDICAL":
                     self.append_to_medical_log(identifier, payload)
                 elif msg_type == "MEDICAL_ACK":
-                    self.medical_log_box.insert(tk.END, "[ACK] Evento confirmado en RabbitMQ.\n\n", "ACK")
+                    self.medical_log_box.insert(tk.END, "[✓ ACK] Mensaje procesado y retirado de cola.\n\n", "ACK")
                     self.medical_log_box.see(tk.END)
                 elif msg_type == "SECURITY":
                     self.append_to_security_log(identifier[0], identifier[1], payload)
                 elif msg_type == "SECURITY_ACK":
-                    self.security_log_box.insert(tk.END, "[ACK] Alerta de seguridad confirmada en RabbitMQ.\n\n", "ACK")
+                    self.security_log_box.insert(tk.END, "[✓ ACK] Alerta física confirmada y registrada.\n\n", "ACK")
                     self.security_log_box.see(tk.END)
                     
                 self.message_update_queue.task_done()
         except queue.Empty:
             pass
             
-        # Re-schedule poller every 100 milliseconds
         self.root.after(100, self.poll_received_messages)
 
     def append_to_medical_log(self, routing_key, payload):
-        """
-        Appends a formatted clinical reading with color highlights.
-        """
         severity = payload.get("severity_level", "info").upper()
         cama = payload.get("bed_number", "UNKNOWN")
         sensor = payload.get("sensor_type", "UNKNOWN")
@@ -582,57 +639,48 @@ class UCIDashboardApp:
         desc = payload.get("description", "")
         timestamp = payload.get("timestamp", "").split("T")[-1].replace("Z", "")
         
-        # Decide tag color based on severity levels
         text_tag = "INFO"
         if severity in ["CRITICAL", "CRÍTICA", "CRITICA"]:
             text_tag = "CRITICAL"
-            header = f"🚨 ALERTA CRÍTICA [{timestamp}]"
+            header = f"● 🚨 [ALERTA CLÍNICA CRÍTICA] @ {timestamp}\n"
         elif severity in ["WARNING", "ADVERTENCIA"]:
             text_tag = "WARNING"
-            header = f"⚠️ ADVERTENCIA [{timestamp}]"
+            header = f"● ⚠️ [ADVERTENCIA CLÍNICA] @ {timestamp}\n"
         else:
-            header = f"📉 TELEMETRÍA [{timestamp}]"
+            header = f"● ℹ [TELEMETRÍA RECIBIDA] @ {timestamp}\n"
             
-        self.medical_log_box.insert(tk.END, f"{header}\n", text_tag)
-        self.medical_log_box.insert(tk.END, f"  Cama: #{cama} | Sensor: {sensor}\n")
-        self.medical_log_box.insert(tk.END, f"  Lectura: {valor} {unit}\n")
-        self.medical_log_box.insert(tk.END, f"  Ruta: {routing_key}\n")
-        self.medical_log_box.insert(tk.END, f"  Info: {desc}\n")
+        self.medical_log_box.insert(tk.END, header, text_tag)
+        self.medical_log_box.insert(tk.END, f"  Paciente: Cama #{cama} | Sensor: {sensor}\n")
+        self.medical_log_box.insert(tk.END, f"  Medición: {valor} {unit} | Clave Ruteo: {routing_key}\n")
+        self.medical_log_box.insert(tk.END, f"  Detalle:  {desc}\n")
         self.medical_log_box.see(tk.END)
 
     def append_to_security_log(self, exchange, routing_key, payload):
-        """
-        Appends security alerts with distinct background tags.
-        """
         severity = payload.get("severity_level", "info").upper()
-        dispositivo = payload.get("sensor_type", "seguridad")
+        sensor = payload.get("sensor_type", "seguridad")
         desc = payload.get("description", "")
         timestamp = payload.get("timestamp", "").split("T")[-1].replace("Z", "")
         
         if exchange == config.EXCHANGE_BIOSECURITY:
-            header = f"📢 COMUNICADO BIOSEGURIDAD [{timestamp}]\n"
+            header = f"● 📢 [COMUNICADO DE BIOSEGURIDAD] @ {timestamp}\n"
             self.security_log_box.insert(tk.END, header, "BIOSEGURIDAD")
-            self.security_log_box.insert(tk.END, f"  Origen: {exchange}\n")
+            self.security_log_box.insert(tk.END, f"  Origen:  Exchange Fanout ('{exchange}')\n")
             self.security_log_box.insert(tk.END, f"  Detalle: {desc}\n")
         else:
-            header = f"💥 EMERGENCIA DE INFRAESTRUCTURA [{timestamp}]\n"
+            header = f"● 🔥 [EMERGENCIA DE INFRAESTRUCTURA] @ {timestamp}\n"
             self.security_log_box.insert(tk.END, header, "EMERGENCIA")
-            self.security_log_box.insert(tk.END, f"  Gravedad: {severity} | Origen: {dispositivo}\n")
-            self.security_log_box.insert(tk.END, f"  Detalle: {desc}\n")
+            self.security_log_box.insert(tk.END, f"  Gravedad: {severity} | Origen: {sensor}\n")
+            self.security_log_box.insert(tk.END, f"  Detalle:  {desc}\n")
             
         self.security_log_box.see(tk.END)
 
     # -----------------------------------------------------------------
-    # DESTRUCTION & EXIT ACTIONS
+    # SHUTDOWN ACTION
     # -----------------------------------------------------------------
     def on_close_app(self):
-        """
-        Terminates background threads and closes open socket connections cleanly.
-        """
         self.is_running = False
         self.is_simulation_active = False
         
-        # Close open rabbitmq connections to stop consumer threads
         try:
             if self.producer_connection and self.producer_connection.is_open:
                 self.producer_connection.close()
@@ -646,9 +694,6 @@ class UCIDashboardApp:
         self.root.destroy()
 
 def generate_medical_payload(bed_number, sensor_type, metric_value, unit, severity_level, description):
-    """
-    Helper function to generate simulation JSON bodies matching the schema.
-    """
     return {
         "message_id": str(uuid.uuid4()),
         "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
