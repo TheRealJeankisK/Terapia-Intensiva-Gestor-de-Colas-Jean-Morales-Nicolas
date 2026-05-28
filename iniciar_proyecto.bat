@@ -41,7 +41,7 @@ if "%opcion%"=="2" (
 ) else (
     echo.
     echo Iniciando Dashboard de Interfaz Gráfica (GUI)...
-    start "Dashboard GUI UCI" python dashboard_gui.py
+    start "Dashboard GUI UCI" cmd /k "python dashboard_gui.py"
 )
 
 echo.
