@@ -22,15 +22,29 @@ echo [INFO] Si usas la versión nativa de RabbitMQ (sin Docker), asegúrate de c
 echo        el Virtual Host '/uci_app' manualmente en http://localhost:15672/
 echo.
 
-:: 3. Launch Python scripts in separate CMD windows
-echo [3/3] Iniciando el Productor y los Consumidores en ventanas independientes...
-start "Consumidor Medico (Clínico)" cmd /k "python consumidor_medico.py"
-timeout /t 1 >nul
-start "Consumidor Seguridad (Operaciones)" cmd /k "python consumidor_seguridad.py"
-timeout /t 1 >nul
-start "Productor UCI (Simulador)" cmd /k "python productor_uci.py"
+:: 3. Choose execution mode
+echo [3/3] ¿Cómo deseas ejecutar el proyecto?
+echo.
+echo   [1] EJECUTAR DASHBOARD GRÁFICO (Recomendado - Todo en una sola interfaz)
+echo   [2] Ejecutar en 3 terminales separadas (Mensajería clásica por consola)
+echo.
+set /p opcion="Seleccione una opción (1 o 2) [Por defecto: 1]: "
+
+if "%opcion%"=="2" (
+    echo.
+    echo Iniciando el Productor y los Consumidores en ventanas independientes de consola...
+    start "Consumidor Medico (Clínico)" cmd /k "python consumidor_medico.py"
+    timeout /t 1 >nul
+    start "Consumidor Seguridad (Operaciones)" cmd /k "python consumidor_seguridad.py"
+    timeout /t 1 >nul
+    start "Productor UCI (Simulador)" cmd /k "python productor_uci.py"
+) else (
+    echo.
+    echo Iniciando Dashboard de Interfaz Gráfica (GUI)...
+    start "Dashboard GUI UCI" python dashboard_gui.py
+)
 
 echo.
-echo [ÉXITO] ¡Todo ha sido iniciado! Revisa las tres nuevas ventanas de comandos.
+echo [ÉXITO] ¡Completado!
 echo.
-pause
+timeout /t 3 >nul
