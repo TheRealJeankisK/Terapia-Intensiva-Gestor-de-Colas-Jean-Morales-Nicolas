@@ -15,7 +15,6 @@ echo.
 
 :: 2. Configure Virtual Host inside Docker container
 echo [2/3] Intentando configurar el Virtual Host '/uci_app' en el contenedor 'rabbitmq-uci'...
-:: We remove the -it flag to avoid TTY redirection errors in non-interactive batch executions
 docker exec rabbitmq-uci rabbitmqctl add_vhost /uci_app
 docker exec rabbitmq-uci rabbitmqctl set_permissions -p /uci_app guest ".*" ".*" ".*"
 echo.
@@ -24,29 +23,29 @@ echo        el Virtual Host '/uci_app' manualmente en http://localhost:15672/
 echo.
 
 :: 3. Choose execution mode
-echo [3/3] ¿Cómo deseas ejecutar el proyecto?
+echo [3/3] Como deseas ejecutar el proyecto?
 echo.
-echo   [1] EJECUTAR DASHBOARD GRÁFICO (Recomendado - Todo en una sola interfaz)
-echo   [2] Ejecutar en 3 terminales separadas (Mensajería clásica por consola)
+echo   [1] EJECUTAR DASHBOARD GRAFICO [Recomendado - Todo en una sola interfaz]
+echo   [2] Ejecutar en 3 terminales separadas [Mensajeria clasica por consola]
 echo.
-set /p opcion="Seleccione una opción (1 o 2) [Por defecto: 1]: "
+set /p opcion="Seleccione una opcion (1 o 2) [Por defecto: 1]: "
 
 if "%opcion%"=="2" (
     echo.
     echo Iniciando el Productor y los Consumidores en ventanas independientes de consola...
-    start "Consumidor Medico (Clínico)" cmd /k "python consumidor_medico.py"
+    start "Consumidor Medico [Clinico]" cmd /k "python consumidor_medico.py"
     ping 127.0.0.1 -n 2 >nul
-    start "Consumidor Seguridad (Operaciones)" cmd /k "python consumidor_seguridad.py"
+    start "Consumidor Seguridad [Operaciones]" cmd /k "python consumidor_seguridad.py"
     ping 127.0.0.1 -n 2 >nul
-    start "Productor UCI (Simulador)" cmd /k "python productor_uci.py"
+    start "Productor UCI [Simulador]" cmd /k "python productor_uci.py"
 ) else (
     echo.
-    echo Iniciando Dashboard de Interfaz Gráfica (GUI)...
-    echo [INFO] Presione Ctrl+C aquí si desea cerrar el panel.
+    echo Iniciando Dashboard de Interfaz Grafica [GUI]...
+    echo [INFO] Presione Ctrl+C aqui si desea cerrar el panel.
     python dashboard_gui.py
 )
 
 echo.
-echo [ÉXITO] Ejecución finalizada.
+echo [EXITO] Ejecucion finalizada.
 echo.
 pause
