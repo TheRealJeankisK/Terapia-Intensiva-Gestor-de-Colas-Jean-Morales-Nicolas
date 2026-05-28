@@ -41,10 +41,11 @@ if "%opcion%"=="2" (
 ) else (
     echo.
     echo Iniciando Dashboard de Interfaz Gráfica (GUI)...
-    start "Dashboard GUI UCI" cmd /k "python dashboard_gui.py"
+    echo [INFO] Presione Ctrl+C aquí si desea cerrar el panel.
+    python dashboard_gui.py
 )
 
 echo.
-echo [ÉXITO] ¡Completado!
+echo [ÉXITO] Ejecución finalizada.
 echo.
-timeout /t 3 >nul
+pause
