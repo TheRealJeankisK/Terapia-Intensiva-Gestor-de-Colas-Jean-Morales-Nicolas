@@ -15,8 +15,9 @@ echo.
 
 :: 2. Configure Virtual Host inside Docker container
 echo [2/3] Intentando configurar el Virtual Host '/uci_app' en el contenedor 'rabbitmq-uci'...
-docker exec -it rabbitmq-uci rabbitmqctl add_vhost /uci_app
-docker exec -it rabbitmq-uci rabbitmqctl set_permissions -p /uci_app guest ".*" ".*" ".*"
+:: We remove the -it flag to avoid TTY redirection errors in non-interactive batch executions
+docker exec rabbitmq-uci rabbitmqctl add_vhost /uci_app
+docker exec rabbitmq-uci rabbitmqctl set_permissions -p /uci_app guest ".*" ".*" ".*"
 echo.
 echo [INFO] Si usas la versión nativa de RabbitMQ (sin Docker), asegúrate de crear
 echo        el Virtual Host '/uci_app' manualmente en http://localhost:15672/
@@ -34,9 +35,9 @@ if "%opcion%"=="2" (
     echo.
     echo Iniciando el Productor y los Consumidores en ventanas independientes de consola...
     start "Consumidor Medico (Clínico)" cmd /k "python consumidor_medico.py"
-    timeout /t 1 >nul
+    ping 127.0.0.1 -n 2 >nul
     start "Consumidor Seguridad (Operaciones)" cmd /k "python consumidor_seguridad.py"
-    timeout /t 1 >nul
+    ping 127.0.0.1 -n 2 >nul
     start "Productor UCI (Simulador)" cmd /k "python productor_uci.py"
 ) else (
     echo.
