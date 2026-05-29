@@ -13,89 +13,89 @@ import config
 
 class UCIDashboardApp:
     """
-    Highly-polished GUI Dashboard for the UCI Queue Management System.
-    Uses custom styles, thread-safe asynchronous updates, and responsive spacing.
+    Dashboard GUI altamente pulido para el Sistema de Gestión de Colas de la UCI.
+    Utiliza estilos personalizados, actualizaciones asíncronas seguras para hilos y espaciado adaptativo.
     """
     def __init__(self, root_window):
         self.root = root_window
         self.root.title("UCI Monitoreo Crítico & Seguridad - RabbitMQ Dashboard")
         self.root.geometry("1300x780")
-        self.root.configure(bg="#0f1016") # Deep slate black
+        self.root.configure(bg="#0f1016") # Fondo negro pizarra profundo
         
-        # Thread-safe queue for asynchronous messages from consumers
+        # Cola segura para hilos para mensajes asíncronos de los consumidores
         self.message_update_queue = queue.Queue()
         
-        # Simulation flags
+        # Banderas de simulación
         self.is_simulation_active = False
         self.is_running = True
         
-        # AMQP connection objects
+        # Objetos de conexión AMQP
         self.producer_connection = None
         self.producer_channel = None
         self.medical_connection = None
         self.security_connection = None
         
-        # Color palette constants
-        self.COLOR_BG = "#0f1016"          # Outer background
-        self.COLOR_CARD = "#171923"        # Inside panels background
-        self.COLOR_ACCENT = "#4f46e5"      # Modern indigo
+        # Constantes de la paleta de colores
+        self.COLOR_BG = "#0f1016"          # Fondo exterior
+        self.COLOR_CARD = "#171923"        # Fondo de paneles interiores
+        self.COLOR_ACCENT = "#4f46e5"      # Índigo moderno
         self.COLOR_ACCENT_HOVER = "#6366f1"
-        self.COLOR_TEXT_MAIN = "#ffffff"   # High contrast text
-        self.COLOR_TEXT_MUTED = "#a0aec0"  # Muted grey text
+        self.COLOR_TEXT_MAIN = "#ffffff"   # Texto de alto contraste
+        self.COLOR_TEXT_MUTED = "#a0aec0"  # Texto gris apagado
         
-        self.COLOR_SUCCESS = "#10b981"     # Emerald Green
-        self.COLOR_WARNING = "#f59e0b"     # Amber
-        self.COLOR_DANGER = "#ef4444"      # Rose Red
-        self.COLOR_LOG_BG = "#0b0c10"      # Console black
+        self.COLOR_SUCCESS = "#10b981"     # Verde esmeralda
+        self.COLOR_WARNING = "#f59e0b"     # Ámbar
+        self.COLOR_DANGER = "#ef4444"      # Rojo rosa
+        self.COLOR_LOG_BG = "#0b0c10"      # Negro consola
         
-        # Configure RabbitMQ connection
+        # Configura la conexión a RabbitMQ
         self.initialize_rabbitmq()
         
-        # Initialize UI Components
+        # Inicializa los componentes de la interfaz de usuario
         self.setup_styles()
         self.create_header()
         self.create_widgets()
         
-        # Launch background consumers
+        # Inicia los hilos de consumidores en segundo plano
         self.start_consumer_threads()
         
-        # Start periodic GUI queue poller
+        # Inicia el extractor de colas periódico de la GUI
         self.root.after(100, self.poll_received_messages)
         
-        # Handle graceful window closure
+        # Maneja el cierre limpio de la ventana
         self.root.protocol("WM_DELETE_WINDOW", self.on_close_app)
 
     def setup_styles(self):
         """
-        Customizes theme colors, entries, dropdowns and button styles.
+        Personaliza los colores del tema, entradas, menús desplegables y estilos de botones.
         """
         style = ttk.Style()
         style.theme_use("clam")
         
-        # Set default styles
+        # Establece los estilos predeterminados
         style.configure(".", background=self.COLOR_BG, foreground=self.COLOR_TEXT_MAIN)
         style.configure("TLabel", background=self.COLOR_BG, foreground=self.COLOR_TEXT_MAIN, font=("Segoe UI", 10))
         
-        # Card style panels
+        # Paneles de estilo tarjeta (card)
         style.configure("Card.TFrame", background=self.COLOR_CARD, relief="flat")
         style.configure("CardLabel.TLabel", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MAIN, font=("Segoe UI", 10))
         style.configure("CardHeader.TLabel", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MAIN, font=("Segoe UI", 12, "bold"))
         style.configure("CardSubHeader.TLabel", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MUTED, font=("Segoe UI", 9, "italic"))
         
-        # Custom input entries and comboboxes
+        # Entradas y comboboxes personalizados
         style.configure("TEntry", fieldbackground="#1f2232", foreground=self.COLOR_TEXT_MAIN, bordercolor="#2d3748")
         style.map("TEntry", bordercolor=[("focus", self.COLOR_ACCENT)])
         
         style.configure("TCombobox", fieldbackground="#1f2232", background="#1f2232", foreground=self.COLOR_TEXT_MAIN, arrowcolor=self.COLOR_TEXT_MAIN)
         style.map("TCombobox", fieldbackground=[("readonly", "#1f2232")], selectbackground=[("readonly", "#1f2232")])
         
-        # Custom LabelFrames
+        # LabelFrames personalizados
         style.configure("TLabelframe", background=self.COLOR_CARD, bordercolor="#2d3748", relief="solid", borderwidth=1)
         style.configure("TLabelframe.Label", background=self.COLOR_CARD, foreground=self.COLOR_TEXT_MUTED, font=("Segoe UI", 9, "bold"))
 
     def initialize_rabbitmq(self):
         """
-        Declares RabbitMQ topology. Fails gracefully displaying a messagebox warning.
+        Declara la topología de RabbitMQ. Falla limpiamente mostrando una advertencia en un cuadro de mensaje.
         """
         try:
             self.producer_connection = config.get_rabbitmq_connection()
@@ -111,13 +111,13 @@ class UCIDashboardApp:
 
     def create_header(self):
         """
-        Creates a clean status bar banner at the top of the GUI.
+        Crea una barra de estado limpia en la parte superior de la GUI.
         """
         header_frame = tk.Frame(self.root, bg="#13141f", height=60, bd=0)
         header_frame.pack(fill="x", side="top")
         header_frame.pack_propagate(False)
         
-        # Hospital Title Label
+        # Etiqueta del título del hospital
         title_label = tk.Label(
             header_frame,
             text="🏥  MONITOREO DE PACIENTES & SEGURIDAD UCI",
@@ -127,7 +127,7 @@ class UCIDashboardApp:
         )
         title_label.pack(side="left", padx=20, pady=15)
         
-        # RabbitMQ Connection Pulse Indicator
+        # Indicador de pulso de conexión a RabbitMQ
         status_sub_frame = tk.Frame(header_frame, bg="#13141f")
         status_sub_frame.pack(side="right", padx=20, pady=15)
         
@@ -145,18 +145,18 @@ class UCIDashboardApp:
 
     def create_widgets(self):
         """
-        Main workspace layout. Builds the 3 structured column panels.
+        Diseño del espacio de trabajo principal. Construye los 3 paneles de columnas estructurados.
         """
         workspace_frame = ttk.Frame(self.root, padding=15)
         workspace_frame.pack(fill="both", expand=True)
         
-        workspace_frame.columnconfigure(0, weight=4, uniform="cols") # Left simulator
-        workspace_frame.columnconfigure(1, weight=5, uniform="cols") # Middle Clinical Log
-        workspace_frame.columnconfigure(2, weight=5, uniform="cols") # Right Security Log
+        workspace_frame.columnconfigure(0, weight=4, uniform="cols") # Emisor a la izquierda
+        workspace_frame.columnconfigure(1, weight=5, uniform="cols") # Registro clínico al centro
+        workspace_frame.columnconfigure(2, weight=5, uniform="cols") # Registro de seguridad a la derecha
         workspace_frame.rowconfigure(0, weight=1)
         
         # -------------------------------------------------------------
-        # COLUMN 1: SIMULATOR CONTROL CARD
+        # COLUMNA 1: TARJETA DE CONTROL DEL SIMULADOR
         # -------------------------------------------------------------
         producer_panel = ttk.Frame(workspace_frame, style="Card.TFrame", padding=15)
         producer_panel.grid(row=0, column=0, padx=10, sticky="nsew")
@@ -167,7 +167,7 @@ class UCIDashboardApp:
         subtitle_producer = ttk.Label(producer_panel, text="Simula la emisión de datos clínicos y alertas críticas.", style="CardSubHeader.TLabel")
         subtitle_producer.pack(anchor="w", pady=(0, 15))
         
-        # Group 1: Vitals (Topic Exchange)
+        # Grupo 1: Signos Vitales (Topic Exchange)
         vitals_group = ttk.LabelFrame(producer_panel, text=" TELEMETRÍA DE SIGNOS VITALES [TOPIC] ")
         vitals_group.pack(fill="x", pady=5)
         
@@ -196,7 +196,7 @@ class UCIDashboardApp:
         )
         self.btn_send_vitals.pack(fill="x", padx=10, pady=(5, 10))
         
-        # Group 2: Alerts (Direct Exchange)
+        # Grupo 2: Alertas (Direct Exchange)
         alerts_group = ttk.LabelFrame(producer_panel, text=" ALERTAS DIRECTAS POR GRAVEDAD [DIRECT] ")
         alerts_group.pack(fill="x", pady=10)
         
@@ -220,7 +220,7 @@ class UCIDashboardApp:
         )
         self.btn_send_alerts.pack(fill="x", padx=10, pady=(5, 10))
         
-        # Group 3: Biosecurity (Fanout Exchange)
+        # Grupo 3: Bioseguridad (Fanout Exchange)
         biosecurity_group = ttk.LabelFrame(producer_panel, text=" AVISOS GENERALES Y BIOSEGURIDAD [FANOUT] ")
         biosecurity_group.pack(fill="x", pady=5)
         
@@ -237,7 +237,7 @@ class UCIDashboardApp:
         )
         self.btn_send_biosecurity.pack(fill="x", padx=10, pady=(5, 10))
         
-        # Group 4: Automated Simulation Checkbutton
+        # Grupo 4: Checkbutton de simulación automática
         self.auto_simulation_var = tk.BooleanVar(value=False)
         self.auto_checkbox = tk.Checkbutton(
             producer_panel,
@@ -254,7 +254,7 @@ class UCIDashboardApp:
         self.auto_checkbox.pack(pady=(20, 0), anchor="center")
 
         # -------------------------------------------------------------
-        # COLUMN 2: CLINICAL TELEMETRY MONITOR (CONSUMER 1)
+        # COLUMNA 2: MONITOR DE TELEMETRÍA CLÍNICA (CONSUMIDOR 1)
         # -------------------------------------------------------------
         medical_panel = ttk.Frame(workspace_frame, style="Card.TFrame", padding=15)
         medical_panel.grid(row=0, column=1, padx=10, sticky="nsew")
@@ -265,7 +265,7 @@ class UCIDashboardApp:
         sub_med = ttk.Label(medical_panel, text="Registro en tiempo real de signos de pacientes.", style="CardSubHeader.TLabel")
         sub_med.pack(anchor="w", pady=(0, 12))
         
-        # Scrolled Text configuration with customized layout
+        # Configuración del Scrolled Text con diseño personalizado
         self.medical_log_box = scrolledtext.ScrolledText(
             medical_panel,
             bg=self.COLOR_LOG_BG,
@@ -281,14 +281,14 @@ class UCIDashboardApp:
         )
         self.medical_log_box.pack(fill="both", expand=True)
         
-        # Log entry highlighting tags
+        # Etiquetas de resaltado para las entradas de registros
         self.medical_log_box.tag_config("CRITICAL", foreground="#f87171", font=("Consolas", 9, "bold"))
         self.medical_log_box.tag_config("WARNING", foreground="#fbbf24", font=("Consolas", 9, "bold"))
         self.medical_log_box.tag_config("INFO", foreground="#34d399")
         self.medical_log_box.tag_config("ACK", foreground="#38bdf8", font=("Consolas", 8, "italic"))
 
         # -------------------------------------------------------------
-        # COLUMN 3: SECURITY & INFRASTRUCTURE MONITOR (CONSUMER 2)
+        # COLUMNA 3: MONITOR DE SEGURIDAD E INFRAESTRUCTURA (CONSUMIDOR 2)
         # -------------------------------------------------------------
         security_panel = ttk.Frame(workspace_frame, style="Card.TFrame", padding=15)
         security_panel.grid(row=0, column=2, padx=10, sticky="nsew")
@@ -320,7 +320,7 @@ class UCIDashboardApp:
 
     def create_flat_button(self, parent, text, command, bg_color):
         """
-        Creates a custom stylized flat button with smooth hover animation.
+        Crea un botón plano estilizado personalizado con una animación de transición suave.
         """
         btn = tk.Button(
             parent,
@@ -337,7 +337,7 @@ class UCIDashboardApp:
             pady=6
         )
         
-        # Hover effect functions
+        # Funciones de efecto hover
         def on_enter(event):
             btn.config(bg=self.lighten_color(bg_color))
         def on_leave(event):
@@ -349,16 +349,16 @@ class UCIDashboardApp:
 
     def lighten_color(self, hex_color):
         """
-        Calculates a slightly lighter version of a color for the hover animation.
+        Calcula una versión ligeramente más clara de un color para la animación del hover.
         """
         hex_color = hex_color.lstrip('#')
         rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-        # Increase values slightly
+        # Incrementa los valores ligeramente
         lighter_rgb = tuple(min(255, int(channel * 1.15)) for channel in rgb)
         return '#{:02x}{:02x}{:02x}'.format(*lighter_rgb)
 
     # -----------------------------------------------------------------
-    # AMQP PRODUCER LOGIC
+    # LÓGICA DEL PRODUCTOR AMQP
     # -----------------------------------------------------------------
     def send_manual_telemetry(self):
         if not self.producer_channel or not self.producer_channel.is_open:
@@ -377,6 +377,7 @@ class UCIDashboardApp:
         severity = "info"
         description = "Signos estables."
         
+        # Evalúa la gravedad
         if sensor == "ritmo_cardiaco":
             if valor < 50 or valor > 120:
                 severity = "critical"
@@ -384,6 +385,9 @@ class UCIDashboardApp:
             elif valor < 60 or valor > 100:
                 severity = "warning"
                 description = "Ritmo cardíaco ligeramente fuera de rango."
+            else:
+                severity = "info"
+                description = "Ritmo cardíaco normal."
         elif sensor == "oxigeno":
             if valor < 90:
                 severity = "critical"
@@ -391,6 +395,9 @@ class UCIDashboardApp:
             elif valor < 94:
                 severity = "warning"
                 description = "Niveles bajos de oxígeno."
+            else:
+                severity = "info"
+                description = "Niveles de oxígeno normales."
         else: # temperatura
             if valor > 38.5 or valor < 35.0:
                 severity = "critical"
@@ -398,6 +405,9 @@ class UCIDashboardApp:
             elif valor > 37.5 or valor < 36.0:
                 severity = "warning"
                 description = "Advertencia de fiebre moderada."
+            else:
+                severity = "info"
+                description = "Temperatura corporal normal."
 
         routing_key = f"cama.{cama}.{sensor}"
         payload = {
@@ -500,10 +510,11 @@ class UCIDashboardApp:
             event_probability = random.random()
             try:
                 if event_probability < 0.70:
-                    # Telemetry (Topic)
+                    # Telemetría (Topic)
                     cama = random.choice(bed_identifiers)
                     sensor = random.choice(active_sensors)
                     
+                    # Determina si simulamos una anomalía
                     is_abnormal = random.random() < 0.12
                     if is_abnormal:
                         val = round(random.uniform(*sensor["critical_range"]), 1)
@@ -519,7 +530,7 @@ class UCIDashboardApp:
                     self.publish_to_rabbitmq(config.EXCHANGE_MONITORING, routing_key, payload)
                     
                 elif event_probability < 0.90:
-                    # Direct Alerts
+                    # Alertas Directas
                     severity = random.choice(["info", "warning", "critical"])
                     cama = random.choice(bed_identifiers)
                     descriptions = {
@@ -531,7 +542,7 @@ class UCIDashboardApp:
                     self.publish_to_rabbitmq(config.EXCHANGE_ALERTS, severity, payload)
                     
                 else:
-                    # Biosecurity Broadcaster (Fanout)
+                    # Difusión de Bioseguridad (Fanout)
                     notices = [
                         "Fallo de energía en Ala Norte - generador de respaldo activo.",
                         "Protocolos de descontaminación de bioseguridad en Quirófano 2.",
@@ -546,7 +557,7 @@ class UCIDashboardApp:
             time.sleep(3)
 
     # -----------------------------------------------------------------
-    # BACKGROUND CONSUMERS LISTENING
+    # ESCUCHA DE CONSUMIDORES EN SEGUNDO PLANO
     # -----------------------------------------------------------------
     def start_consumer_threads(self):
         medical_thread = threading.Thread(target=self.run_medical_consumer_listener, daemon=True)
@@ -560,6 +571,7 @@ class UCIDashboardApp:
             self.medical_connection = config.get_rabbitmq_connection()
             channel = self.medical_connection.channel()
             config.setup_infrastructure(channel)
+            # Configuración básica de QoS en Pika
             channel.basic_qos(prefetch_count=1)
             
             def callback(ch, method, properties, body):
@@ -603,7 +615,7 @@ class UCIDashboardApp:
             pass
 
     # -----------------------------------------------------------------
-    # GUI ASYNCHRONOUS POLLER
+    # EXTRACTOR ASÍNCRONO DE LA GUI
     # -----------------------------------------------------------------
     def poll_received_messages(self):
         if not self.is_running:
@@ -675,7 +687,7 @@ class UCIDashboardApp:
         self.security_log_box.see(tk.END)
 
     # -----------------------------------------------------------------
-    # SHUTDOWN ACTION
+    # ACCIÓN DE CIERRE CONTROLADO
     # -----------------------------------------------------------------
     def on_close_app(self):
         self.is_running = False

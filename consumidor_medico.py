@@ -7,7 +7,7 @@ import config
 
 def format_terminal_output(routing_key, payload):
     """
-    Renders telemetry data with customized colors based on severity levels.
+    Muestra los datos de telemetría con colores personalizados basados en los niveles de gravedad.
     """
     severity = payload.get("severity_level", "info").upper()
     bed = payload.get("bed_number", "UNKNOWN")
@@ -16,7 +16,7 @@ def format_terminal_output(routing_key, payload):
     unit = payload.get("measurement_unit", "")
     description = payload.get("description", "")
     
-    # ANSI escape codes for coloring console output
+    # Códigos de escape ANSI para colorear la salida de consola
     color_reset = "\033[0m"
     color_bold = "\033[1m"
     color_red = "\033[91m"
@@ -24,7 +24,7 @@ def format_terminal_output(routing_key, payload):
     color_cyan = "\033[96m"
     color_green = "\033[92m"
     
-    # Choose color based on severity
+    # Selecciona el color según la gravedad
     if severity == "CRITICAL" or severity == "CRÍTICA" or severity == "CRITICA":
         alert_prefix = f"{color_red}{color_bold}[ALERTA CLÍNICA CRÍTICA]{color_reset}"
         severity_formatted = f"{color_red}{severity}{color_reset}"
@@ -45,37 +45,37 @@ def format_terminal_output(routing_key, payload):
 
 def medical_message_callback(amqp_channel, delivery_method, message_properties, raw_message_body):
     """
-    Pika callback triggered when a message is received from the queue.
-    Processes the JSON payload and manually acknowledges successful execution.
+    Callback de Pika que se activa cuando se recibe un mensaje de la cola.
+    Procesa el payload JSON y confirma manualmente la recepción tras una ejecución exitosa.
     """
     try:
-        # Decode and deserialize the JSON message
+        # Decodifica y deserializa el mensaje JSON
         payload_dictionary = json.loads(raw_message_body.decode('utf-8'))
         
-        # Display message routing details as requested
+        # Muestra los detalles de enrutamiento del mensaje según lo solicitado
         format_terminal_output(delivery_method.routing_key, payload_dictionary)
         
-        # Simulate local database storage or analytics delay
+        # Simula el almacenamiento en la base de datos local o el retraso de análisis
         time.sleep(1.0)
         
-        # Manually acknowledge the message processing completion
+        # Confirma manualmente la finalización del procesamiento del mensaje
         amqp_channel.basic_ack(delivery_tag=delivery_method.delivery_tag)
         print("[ACK] Mensaje procesado y confirmado (Acknowledge) con éxito.")
         
     except json.JSONDecodeError as decode_exception:
         print(f"[ERROR] Error al decodificar el cuerpo JSON: {decode_exception}", file=sys.stderr)
-        # Reject invalid JSON formats without requeuing to prevent poison queue loops
+        # Rechaza formatos JSON inválidos sin reencolar para prevenir bucles infinitos por mensajes venenosos
         amqp_channel.basic_nack(delivery_tag=delivery_method.delivery_tag, requeue=False)
         
     except Exception as processing_exception:
         print(f"[ERROR] Ocurrió una excepción al procesar el evento médico: {processing_exception}", file=sys.stderr)
-        # Requeue message to attempt reprocessing later
+        # Reencola el mensaje para intentar procesarlo más tarde
         amqp_channel.basic_nack(delivery_tag=delivery_method.delivery_tag, requeue=True)
         print("[NACK] Falló el procesamiento del mensaje. Reencolado para reintento.")
 
 def main():
     """
-    Initializes medical consumer connection and starts blocking queue consumption.
+    Inicializa la conexión del consumidor médico e inicia el consumo bloqueante de la cola.
     """
     print("=" * 60)
     print("  CONSUMIDOR: Monitor Clínico de UCI (Telemetría Médica)  ")
@@ -85,13 +85,13 @@ def main():
         rabbitmq_connection = config.get_rabbitmq_connection()
         amqp_channel = rabbitmq_connection.channel()
         
-        # Ensure infrastructure is set up (Idempotent topology setup)
+        # Asegura que la infraestructura esté configurada (configuración idempotente de la topología)
         config.setup_infrastructure(amqp_channel)
         
-        # Fair dispatch: Prefetch 1 message to balance load among potential scaling instances
+        # Despacho equitativo: Prefetch 1 mensaje para equilibrar la carga entre posibles instancias de escala
         amqp_channel.basic_qos(prefetch_count=1)
         
-        # Configure consumer to consume with manual basic_ack
+        # Configura el consumidor para consumir con confirmación manual (basic_ack)
         amqp_channel.basic_consume(
             queue=config.QUEUE_MEDICAL_MONITOR,
             on_message_callback=medical_message_callback,
@@ -108,7 +108,7 @@ def main():
     except Exception as initialization_exception:
         print(f"[FATAL] Error de inicialización del consumidor: {initialization_exception}", file=sys.stderr)
     finally:
-        # Gracefully close connections
+        # Cierra las conexiones de forma limpia
         try:
             if 'rabbitmq_connection' in locals() and rabbitmq_connection.is_open:
                 rabbitmq_connection.close()

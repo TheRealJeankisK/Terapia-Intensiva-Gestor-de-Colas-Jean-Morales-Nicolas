@@ -1,27 +1,27 @@
 import pika
 import sys
 
-# Connection configurations for the RabbitMQ server
+# Configuraciones de conexión para el servidor RabbitMQ
 RABBITMQ_HOST = "localhost"
 RABBITMQ_PORT = 5672
 RABBITMQ_USER = "guest"
 RABBITMQ_PASSWORD = "guest"
 RABBITMQ_VIRTUAL_HOST = "/uci_app"
 
-# Exchange name constants representing physical domains
-EXCHANGE_BIOSECURITY = "uci.bioseguridad"  # Fanout exchange for broadcast notifications
-EXCHANGE_ALERTS = "uci.alertas"            # Direct exchange for severity-based alerts
-EXCHANGE_MONITORING = "uci.monitoreo"      # Topic exchange for sensor telemetry data
+# Constantes de nombres de Exchange que representan dominios físicos
+EXCHANGE_BIOSECURITY = "uci.bioseguridad"  # Exchange Fanout para notificaciones de difusión general
+EXCHANGE_ALERTS = "uci.alertas"            # Exchange Direct para alertas basadas en la gravedad
+EXCHANGE_MONITORING = "uci.monitoreo"      # Exchange Topic para datos de telemetría de sensores
 
-# Queue name constants mapping to specific business components
+# Constantes de nombres de colas que se asignan a componentes de negocio específicos
 QUEUE_MEDICAL_MONITOR = "cola.monitoreo_medico"
 QUEUE_CRITICAL_ALERTS = "cola.alertas_criticas"
 QUEUE_GENERAL_NOTICES = "cola.notificaciones_generales"
 
 def get_rabbitmq_connection():
     """
-    Establishes and returns a connection to RabbitMQ with custom virtual host parameters.
-    Catches credentials and virtual host errors to guide the developer.
+    Establece y devuelve una conexión a RabbitMQ con parámetros de virtual host personalizados.
+    Captura errores de credenciales y de virtual host para guiar al desarrollador.
     """
     user_credentials = pika.PlainCredentials(username=RABBITMQ_USER, password=RABBITMQ_PASSWORD)
     connection_parameters = pika.ConnectionParameters(
@@ -49,10 +49,10 @@ def get_rabbitmq_connection():
 
 def setup_infrastructure(amqp_channel):
     """
-    Declares all exchanges, queues, and binds them.
-    Guarantees idempotency (creates them if they do not exist, does nothing otherwise).
+    Declara todos los exchanges, colas y realiza sus enlaces (bindings).
+    Garantiza la idempotencia (los crea si no existen, de lo contrario no hace nada).
     """
-    # 1. Declare the exchanges with correct exchange types
+    # 1. Declarar los exchanges con los tipos de exchange correctos
     amqp_channel.exchange_declare(
         exchange=EXCHANGE_BIOSECURITY,
         exchange_type="fanout",
@@ -71,13 +71,13 @@ def setup_infrastructure(amqp_channel):
         durable=True
     )
 
-    # 2. Declare durable queues for reliable messaging
+    # 2. Declarar colas duraderas para una mensajería confiable
     amqp_channel.queue_declare(queue=QUEUE_MEDICAL_MONITOR, durable=True)
     amqp_channel.queue_declare(queue=QUEUE_CRITICAL_ALERTS, durable=True)
     amqp_channel.queue_declare(queue=QUEUE_GENERAL_NOTICES, durable=True)
 
-    # 3. Bind medical monitoring queue to topic exchange
-    # Routes vitals: cama.<bed_number>.<sensor_type>
+    # 3. Enlazar la cola de monitoreo médico al exchange topic
+    # Enruta signos vitales: cama.<numero_cama>.<tipo_sensor>
     vital_routing_keys = [
         "cama.*.ritmo_cardiaco",
         "cama.*.oxigeno",
@@ -90,7 +90,7 @@ def setup_infrastructure(amqp_channel):
             routing_key=routing_pattern
         )
 
-    # Bind medical queue to direct exchange for warning/critical clinical alerts
+    # Enlazar la cola médica al exchange direct para alertas clínicas de advertencia (warning) y críticas (critical)
     clinical_alert_levels = ["warning", "critical"]
     for alert_level in clinical_alert_levels:
         amqp_channel.queue_bind(
@@ -99,16 +99,16 @@ def setup_infrastructure(amqp_channel):
             routing_key=alert_level
         )
 
-    # 4. Bind critical security alerts queue to direct exchange
-    # Receives only 'critical' severity infrastructure/security events
+    # 4. Enlazar la cola de alertas críticas de seguridad al exchange direct
+    # Recibe solo eventos de seguridad/infraestructura de severidad 'critical'
     amqp_channel.queue_bind(
         queue=QUEUE_CRITICAL_ALERTS,
         exchange=EXCHANGE_ALERTS,
         routing_key="critical"
     )
 
-    # 5. Bind general notifications queue to biosecurity fanout exchange
-    # Broadcasts to all connected receivers
+    # 5. Enlazar la cola de notificaciones generales al exchange fanout de bioseguridad
+    # Realiza una difusión (broadcast) a todos los receptores conectados
     amqp_channel.queue_bind(
         queue=QUEUE_GENERAL_NOTICES,
         exchange=EXCHANGE_BIOSECURITY,

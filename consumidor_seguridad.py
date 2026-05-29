@@ -7,7 +7,7 @@ import config
 
 def format_security_output(exchange_name, routing_key, payload):
     """
-    Renders high-visibility security alerts on the terminal based on the originating exchange.
+    Muestra alertas de seguridad de alta visibilidad en la terminal basadas en el exchange de origen.
     """
     severity = payload.get("severity_level", "info").upper()
     bed = payload.get("bed_number", "SISTEMA")
@@ -22,7 +22,7 @@ def format_security_output(exchange_name, routing_key, payload):
     color_red = "\033[91m"
     color_yellow = "\033[93m"
     
-    # Check if message came from the Biosecurity Fanout exchange
+    # Verifica si el mensaje provino del exchange Fanout de Bioseguridad
     if exchange_name == config.EXCHANGE_BIOSECURITY:
         print("\n" + "#" * 60)
         print(f"{color_yellow_background}{color_white}{color_bold} [COMUNICADO DE BIOSEGURIDAD DIFUNDIDO] {color_reset}")
@@ -32,7 +32,7 @@ def format_security_output(exchange_name, routing_key, payload):
         print(f"  [Acción Requerida]   : Por favor, verifique los registros de bioseguridad del hospital.")
         print("#" * 60)
         
-    # Check if message is a Direct Critical Alert
+    # Verifica si el mensaje es una Alerta Crítica Directa
     elif exchange_name == config.EXCHANGE_ALERTS and routing_key == "critical":
         print("\n" + "!" * 60)
         print(f"{color_red_background}{color_white}{color_bold} !!! EMERGENCIA FÍSICA / INFRAESTRUCTURA CRÍTICA !!! {color_reset}")
@@ -45,31 +45,31 @@ def format_security_output(exchange_name, routing_key, payload):
         print("!" * 60)
         
     else:
-        # Fallback format for any other unexpected messages routing to the security queues
+        # Formato de respaldo para cualquier otro mensaje inesperado enrutado a las colas de seguridad
         print(f"\n[REPORTE DE SEGURIDAD] Exchange: {exchange_name} | Clave: {routing_key}")
         print(f"  Detalles: {description}")
         print("-" * 50)
 
 def security_message_callback(amqp_channel, delivery_method, message_properties, raw_message_body):
     """
-    Pika callback triggered when a message arrives on either of the security queues.
-    Deserializes the JSON event, displays appropriate sirens, and acknowledges the message.
+    Callback de Pika que se activa cuando llega un mensaje a cualquiera de las colas de seguridad.
+    Deserializa el evento JSON, muestra las alarmas apropiadas y confirma el mensaje.
     """
     try:
-        # Decode and deserialize the JSON payload
+        # Decodifica y deserializa el payload JSON
         payload_dictionary = json.loads(raw_message_body.decode('utf-8'))
         
-        # Display formatted output
+        # Muestra la salida formateada
         format_security_output(
             exchange_name=delivery_method.exchange,
             routing_key=delivery_method.routing_key,
             payload=payload_dictionary
         )
         
-        # Simulate alarm activation/logging system latency
+        # Simula la activación de la alarma/latencia del sistema de registro
         time.sleep(1.0)
         
-        # Manually acknowledge the message
+        # Confirma manualmente el mensaje
         amqp_channel.basic_ack(delivery_tag=delivery_method.delivery_tag)
         print("[ACK] Mensaje de seguridad procesado y confirmado (Acknowledged).")
         
@@ -84,7 +84,7 @@ def security_message_callback(amqp_channel, delivery_method, message_properties,
 
 def main():
     """
-    Initializes connection and consumes from multiple security queues concurrently.
+    Inicializa la conexión y consume de múltiples colas de seguridad de forma concurrente.
     """
     print("=" * 60)
     print("  CONSUMIDOR: Panel de Operaciones de Seguridad e Infraestructura  ")
@@ -94,20 +94,20 @@ def main():
         rabbitmq_connection = config.get_rabbitmq_connection()
         amqp_channel = rabbitmq_connection.channel()
         
-        # Ensure infrastructure is set up (Idempotent topology setup)
+        # Asegura que la infraestructura esté configurada (configuración idempotente de la topología)
         config.setup_infrastructure(amqp_channel)
         
-        # Fair dispatch: Prefetch 1 message
+        # Despacho equitativo: Prefetch de 1 mensaje
         amqp_channel.basic_qos(prefetch_count=1)
         
-        # Consume from general biosecurity notifications queue (Fanout)
+        # Consume de la cola de notificaciones generales de bioseguridad (Fanout)
         amqp_channel.basic_consume(
             queue=config.QUEUE_GENERAL_NOTICES,
             on_message_callback=security_message_callback,
             auto_ack=False
         )
         
-        # Consume from critical safety alerts queue (Direct - critical)
+        # Consume de la cola de alertas de seguridad críticas (Direct - critical)
         amqp_channel.basic_consume(
             queue=config.QUEUE_CRITICAL_ALERTS,
             on_message_callback=security_message_callback,
@@ -124,7 +124,7 @@ def main():
     except Exception as initialization_exception:
         print(f"[FATAL] Error de inicialización del consumidor: {initialization_exception}", file=sys.stderr)
     finally:
-        # Gracefully close connections
+        # Cierra las conexiones de forma limpia
         try:
             if 'rabbitmq_connection' in locals() and rabbitmq_connection.is_open:
                 rabbitmq_connection.close()

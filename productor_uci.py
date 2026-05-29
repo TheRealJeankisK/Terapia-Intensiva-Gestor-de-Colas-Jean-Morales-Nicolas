@@ -10,7 +10,7 @@ import config
 
 def generate_medical_payload(bed_number, sensor_type, metric_value, unit, severity_level, description):
     """
-    Constructs a structured JSON payload representing medical telemetry or clinical alerts.
+    Construye un payload JSON estructurado que representa la telemetría médica o las alertas clínicas.
     """
     message_uuid = str(uuid.uuid4())
     iso_timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -29,11 +29,11 @@ def generate_medical_payload(bed_number, sensor_type, metric_value, unit, severi
 
 def publish_message(amqp_channel, exchange_name, routing_key, payload_dictionary):
     """
-    Serializes payload to JSON and publishes it to the specified exchange.
+    Serializa el payload a JSON y lo publica en el exchange especificado.
     """
     serialized_payload = json.dumps(payload_dictionary, indent=2)
     
-    # Message properties indicating JSON content type and persistent delivery mode (2)
+    # Propiedades del mensaje que indican el tipo de contenido JSON y el modo de entrega persistente (2)
     message_properties = pika.BasicProperties(
         content_type="application/json",
         delivery_mode=2  
@@ -53,7 +53,7 @@ def publish_message(amqp_channel, exchange_name, routing_key, payload_dictionary
 
 def handle_manual_telemetry(amqp_channel):
     """
-    Prompts the user for telemetry details and publishes it to the Topic exchange.
+    Solicita al usuario detalles de telemetría y los publica en el exchange Topic.
     """
     print("\n--- Publicar Telemetría de Signos Vitales (Topic Exchange) ---")
     bed_input = input("Ingrese el número de cama (ej. 05, 12) [Por defecto: 08]: ").strip() or "08"
@@ -68,7 +68,7 @@ def handle_manual_telemetry(amqp_channel):
         sensor_type = "ritmo_cardiaco"
         metric_value = float(input("Ingrese ritmo cardíaco (bpm) [Por defecto: 72]: ").strip() or "72")
         unit = "bpm"
-        # Evaluate severity
+        # Evalúa la gravedad
         if metric_value < 50 or metric_value > 120:
             severity_level = "critical"
             description = "¡Ritmo cardíaco anormal detectado!"
@@ -107,7 +107,7 @@ def handle_manual_telemetry(amqp_channel):
             severity_level = "info"
             description = "Temperatura corporal normal."
 
-    # Routing key pattern: cama.<bed_number>.<sensor_type>
+    # Patrón de clave de ruteo: cama.<numero_cama>.<tipo_sensor>
     routing_key_topic = f"cama.{bed_input}.{sensor_type}"
     payload_dictionary = generate_medical_payload(
         bed_number=bed_input,
@@ -122,7 +122,7 @@ def handle_manual_telemetry(amqp_channel):
 
 def handle_manual_alert(amqp_channel):
     """
-    Prompts the user for alert severity and description and publishes to Direct exchange.
+    Solicita al usuario la gravedad y descripción de la alerta y la publica en el exchange Direct.
     """
     print("\n--- Publicar Alerta de Severidad (Direct Exchange) ---")
     print("Seleccione el nivel de severidad:")
@@ -152,7 +152,7 @@ def handle_manual_alert(amqp_channel):
 
 def handle_manual_biosecurity(amqp_channel):
     """
-    Prompts the user for a biosecurity message and broadcasts to Fanout exchange.
+    Solicita al usuario un mensaje de bioseguridad y lo difunde en el exchange Fanout.
     """
     print("\n--- Publicar Comunicado de Bioseguridad (Fanout Exchange) ---")
     description = input("Ingrese el comunicado de bioseguridad: ").strip() or "Se requiere verificación rutinaria de bioseguridad."
@@ -166,12 +166,12 @@ def handle_manual_biosecurity(amqp_channel):
         description=description
     )
     
-    # Fanout routing key is ignored, empty string is used
+    # La clave de ruteo Fanout es ignorada, se utiliza una cadena vacía
     publish_message(amqp_channel, config.EXCHANGE_BIOSECURITY, "", payload_dictionary)
 
 def run_automated_simulation(amqp_channel):
     """
-    Runs an infinite loop simulating realistic patient readings and occasional critical events.
+    Ejecuta un bucle infinito que simula lecturas realistas de pacientes y eventos críticos ocasionales.
     """
     print("\n[INICIO] Iniciando simulación automática de telemetrías de pacientes en UCI...")
     print("Presione Ctrl+C para detener la simulación y regresar al menú.\n")
@@ -186,15 +186,15 @@ def run_automated_simulation(amqp_channel):
     
     try:
         while True:
-            # 80% chance of publishing normal telemetry, 15% clinical alert, 5% biosecurity alert
+            # 70% de probabilidad de publicar telemetría normal, 20% alerta clínica directa, 10% alerta de bioseguridad
             event_probability = random.random()
             
             if event_probability < 0.70:
-                # Telemetry
+                # Telemetría
                 selected_bed = random.choice(bed_identifiers)
                 selected_sensor = random.choice(active_sensors)
                 
-                # Determine if we simulate an abnormality (10% chance of abnormal reading)
+                # Determina si simulamos una anomalía (10% de probabilidad de lectura anormal)
                 is_abnormal = random.random() < 0.10
                 if is_abnormal:
                     metric_value = round(random.uniform(*selected_sensor["critical_range"]), 1)
@@ -218,7 +218,7 @@ def run_automated_simulation(amqp_channel):
                 publish_message(amqp_channel, config.EXCHANGE_MONITORING, routing_key_topic, payload_dictionary)
                 
             elif event_probability < 0.90:
-                # Direct Alert
+                # Alerta Directa
                 severity_level = random.choice(["info", "warning", "critical"])
                 selected_bed = random.choice(bed_identifiers)
                 
@@ -240,7 +240,7 @@ def run_automated_simulation(amqp_channel):
                 publish_message(amqp_channel, config.EXCHANGE_ALERTS, severity_level, payload_dictionary)
                 
             else:
-                # Fanout Biosecurity Notice
+                # Aviso de Bioseguridad Fanout
                 hospital_notices = [
                     "Fallo general de energía en el ala norte - generador de respaldo activo.",
                     "Protocolos de descontaminación de bioseguridad activados en Quirófano 2.",
@@ -258,7 +258,7 @@ def run_automated_simulation(amqp_channel):
                 
                 publish_message(amqp_channel, config.EXCHANGE_BIOSECURITY, "", payload_dictionary)
             
-            # Sleep 3 seconds between simulated events
+            # Duerme 3 segundos entre eventos simulados
             time.sleep(3)
             
     except KeyboardInterrupt:
@@ -266,18 +266,18 @@ def run_automated_simulation(amqp_channel):
 
 def main():
     """
-    Main entry point for the producer simulation cli.
+    Punto de entrada principal para el CLI de simulación del productor.
     """
     print("=" * 60)
     print("  SIMULADOR PRODUCTOR: Telemetría UCI y Alertas de Seguridad  ")
     print("=" * 60)
     
-    # Establish connection and set up the channel
+    # Establece la conexión y configura el canal
     try:
         rabbitmq_connection = config.get_rabbitmq_connection()
         amqp_channel = rabbitmq_connection.channel()
         
-        # Ensure infrastructure exists before starting operations (Idempotence)
+        # Asegura que la infraestructura exista antes de iniciar operaciones (Idempotencia)
         config.setup_infrastructure(amqp_channel)
     except Exception as connection_exception:
         print(f"[FATAL] Inicialización de conexión abortada. {connection_exception}")
