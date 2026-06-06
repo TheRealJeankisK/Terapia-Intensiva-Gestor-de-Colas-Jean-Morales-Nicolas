@@ -1,8 +1,16 @@
-# Tarea: Arquitectura de Microservicios con Patrón de Buzón (Mailbox)
+# Terapia Intensiva: Gestor de Colas (Microservicios & Buzón)
 
-Este proyecto implementa una arquitectura distribuida basada en microservicios independientes que se comunican de forma **asíncrona** utilizando un gestor de colas (RabbitMQ) y aplicando las mejores prácticas de diseño arquitectónico (**SOLID** y **Puertos y Adaptadores / Arquitectura Hexagonal**).
+Este proyecto implementa una arquitectura distribuida basada en microservicios independientes que se comunican de forma **asíncrona** utilizando el patrón de buzón de mensajes (RabbitMQ) y aplicando las mejores prácticas de diseño arquitectónico (**SOLID** y **Puertos y Adaptadores / Arquitectura Hexagonal**).
 
-El caso de uso real desarrollado corresponde a un **Sistema de Alertas de Telemetría Médica (Monitoreo de Constantes Vitales)**.
+---
+
+## Información del Proyecto
+
+*   **Caso de Uso:** Sistema de Monitoreo y Alertas de Telemetría para Pacientes en la Unidad de **Terapia Intensiva** (UCI).
+*   **Repositorio GitHub:** [Terapia Intensiva - Gestor de Colas](https://github.com/TheRealJeankisK/Terapia-Intensiva-Gestor-de-Colas-Jean-Morales-Nicolas)
+*   **Integrantes:**
+    *   Jean Morales
+    *   Nicolás
 
 ---
 
@@ -15,8 +23,8 @@ Cada microservicio cuenta con su propio entorno aislado configurado en un `Docke
 *   **Buzón (RabbitMQ Broker):** Corre en el puerto `5672` (AMQP) y `15672` (Panel de Administración).
 
 ### 2. Comunicación Asíncrona Garantizada (Buzón de Mensajes)
-El Productor no se conecta directamente con el Consumidor. Cuando un sensor envía una alerta vital:
-1.  El Productor valida la alerta.
+El Productor no se conecta directamente con el Consumidor. Cuando un sensor en Terapia Intensiva envía una alerta vital:
+1.  El Productor recibe la telemetría cardíaca y de presión, validando los campos.
 2.  La encola de manera asíncrona en la cola persistente `mailbox_queue` de **RabbitMQ**.
 3.  El Consumidor escucha la cola mediante un demonio en segundo plano (*Background Thread*) y procesa los mensajes conforme ingresan. Si el Consumidor se cae, los mensajes quedan seguros en el buzón.
 
