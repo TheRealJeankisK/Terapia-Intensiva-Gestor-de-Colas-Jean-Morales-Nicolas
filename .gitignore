@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Databases
+*.db
+*.sqlite3
+
+# Local Microservice Volumes/Data
+/*/data/
+/producer/data/
+/consumer/data/
+
+# Environment configurations & secrets
+.env
+.env.*
+!.env.example
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
